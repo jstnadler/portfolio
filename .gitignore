@@ -1,0 +1,13 @@
+# NEVER PUBLISH: the QA gate embeds the employer's real internal figures as regex
+# patterns, so the leak detector is itself the highest-risk file in this folder.
+verify_portfolio.py
+
+# ...and its compiled bytecode, which retains the same string literals verbatim.
+# Verified 2026-08-19: the .pyc reproduced those literals in full.
+__pycache__/
+*.pyc
+
+# local scratch
+*.log
+.DS_Store
+Thumbs.db

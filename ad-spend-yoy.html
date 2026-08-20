@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Ad Spend — Year over Year · Justin Adler</title>
+<link rel="stylesheet" href="assets/portfolio.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="assets/portfolio.js"></script>
+</head>
+<body>
+<main id="app"></main>
+<script>
+(function () {
+  'use strict';
+
+  // ── Synthetic data model ───────────────────────────────────────────────
+  // "This year" (TY) = trailing 12 months through Aug 2026 (Sep 2025–Aug 2026).
+  // "Last year" (LY) = the 12 months before that (Sep 2024–Aug 2025).
+  // Anchored to fixed calendar months (not new Date()) so the page is
+  // fully deterministic regardless of when it's viewed.
+  var START_YEAR = 2024, START_MONTH = 8; // Sep, 0-indexed (Jan=0)
+  var SEASON = [1.05, 0.90, 0.92, 0.95, 0.90, 0.85, 0.85, 0.90, 0.95, 1.15, 1.55, 1.35]; // Jan..Dec
+  var AOV = 66; // synthetic blended average order value, used to derive CAC from ROAS
+  var TOTAL_REVENUE_TTM = 3150000; // synthetic total company revenue, trailing 12 months (all channels)
+
+  var PLATFORM_DEFS = [
+    { key: 'meta',    name: 'Meta',    annualLY: 146800, roasLY: 1.82, roasTY: 1.95, growth: 0.12 },
+    { key: 'google',  name: 'Google',  annualLY: 109400, roasLY: 2.31, roasTY: 2.20, growth: -0.04 },
+    { key: 'youtube', name: 'YouTube', annualLY: 47900,  roasLY: 1.28, roasTY: 1.42, growth: 0.22 },
+    { key: 'tiktok',  name: 'TikTok',  annualLY: 31700,  roasLY: 1.43, roasTY: 1.65, growth: 0.48 },
+    { key: 'amazon',  name: 'Amazon',  annualLY: 86200,  roasLY: 3.00, roasTY: 2.80, growth: 0.09 }
+  ];
+
+  function buildData() {
+    var rng = PF.rng(20260819);
+    var byKey = {};
+    PLATFORM_DEFS.forEach(function (p) {
+      var spend = [], revenue = [], roas = [], cac = [];
+      for (var t = 0; t < 24; t++) {
+        var abs = START_YEAR * 12 + START_MONTH + t;
+        var mIdx = abs % 12;
+        var season = SEASON[mIdx];
+        var monthlyAvg = p.annualLY / 12;
+        var isTY = t >= 12;
+        var growthMult = isTY ? (1 + p.growth) : 1;
+        var jS = PF.jitter(rng) * 0.06;
+        var sp = monthlyAvg * season * growthMult * (1 + jS);
+        var scaleAdj = 1 - 0.12 * (season - 1); // diminishing returns in high-spend months
+        var baseRoas = isTY ? p.roasTY : p.roasLY;
+        var jR = PF.jitter(rng) * 0.05;
+        var ro = baseRoas * scaleAdj * (1 + jR);
+        var rev = sp * ro;
+        spend.push(sp);
+        revenue.push(rev);
+        roas.push(rev / sp);
+        cac.push(AOV * sp / rev);
+      }
+      byKey[p.key] = { spend: spend, revenue: revenue, roas: roas, cac: cac };
+    });
+    return byKey;
+  }
+
+  var DATA = buildData();
+
+  function monthLabel24(t) {
+    var abs = START_YEAR * 12 + START_MONTH + t;
+    var y = Math.floor(abs / 12), mIdx = abs % 12;
+    return PF.MONTHS[mIdx] + " '" + String(y % 100);
+  }
+  var LABELS_24 = [];
+  for (var t24 = 0; t24 < 24; t24++) LABELS_24.push(monthLabel24(t24));
+  var LABELS_12 = [];
+  for (var i12 = 0; i12 < 12; i12++) LABELS_12.push(PF.MONTHS[(START_MONTH + i12) % 12]);
+
+  function sumRange(key, field, from, to) {
+    var s = 0;
+    for (var t = from; t <= to; t++) s += DATA[key][field][t];
+    return s;
+  }
+  function totals(keys, from, to) {
+    var spend = 0, revenue = 0;
+    keys.forEach(function (k) { spend += sumRange(k, 'spend', from, to); revenue += sumRange(k, 'revenue', from, to); });
+    return {
+      spend: spend, revenue: revenue,
+      roas: spend > 0 ? revenue / spend : 0,
+      cac: revenue > 0 ? AOV * spend / revenue : 0
+    };
+  }
+  function monthMetric(t, keys, metric) {
+    var spend = 0, revenue = 0;
+    keys.forEach(function (k) { spend += DATA[k].spend[t]; revenue += DATA[k].revenue[t]; });
+    if (metric === 'spend') return spend;
+    if (metric === 'revenue') return revenue;
+    if (metric === 'roas') return spend > 0 ? revenue / spend : 0;
+    return revenue > 0 ? AOV * spend / revenue : 0; // cac
+  }
+
+  // ── State ────────────────────────────────────────────────────────────────
+  var allKeys = PLATFORM_DEFS.map(function (p) { return p.key; });
+  var state = { platform: 'all', metric: 'spend' };
+  function selectedKeys() {
+    return state.platform === 'all' ? allKeys : [state.platform];
+  }
+
+  var chart1 = null, chart2 = null, chart3 = null;
+
+  // ── Rendering ────────────────────────────────────────────────────────────
+  function fmtByMetric(metric, v) {
+    if (metric === 'roas') return v.toFixed(2) + 'x';
+    if (metric === 'cac') return PF.usd(v, 2);
+    return PF.usdK(v);
+  }
+
+  function render() {
+    var keys = selectedKeys();
+    var metric = state.metric;
+    var c = PF.colors();
+    var series = PF.series();
+    var TY_COLOR = series[5], LY_COLOR = series[7];
+    var PLATFORM_COLOR = {}; PLATFORM_DEFS.forEach(function (p, i) { PLATFORM_COLOR[p.key] = series[i]; });
+
+    var ty = totals(keys, 12, 23);
+    var ly = totals(keys, 0, 11);
+    var vsLY = ly.spend > 0 ? (ty.spend - ly.spend) / ly.spend * 100 : 0;
+    var roasDelta = ly.roas > 0 ? (ty.roas - ly.roas) / ly.roas * 100 : 0;
+    var cacDelta = ly.cac > 0 ? (ty.cac - ly.cac) / ly.cac * 100 : 0;
+    var revDelta = ly.revenue > 0 ? (ty.revenue - ly.revenue) / ly.revenue * 100 : 0;
+    var paidShare = ty.revenue / TOTAL_REVENUE_TTM * 100;
+
+    var main = document.getElementById('app');
+
+    // -- controls --
+    var platformOpts = [['all', 'All']].concat(PLATFORM_DEFS.map(function (p) { return [p.key, p.name]; }));
+    var platformSeg = '<div class="seg" data-seg="platform">' + platformOpts.map(function (o) {
+      return '<button data-v="' + o[0] + '" aria-pressed="' + (state.platform === o[0]) + '">' + o[1] + '</button>';
+    }).join('') + '</div>';
+    var metricOpts = [['spend', 'Spend'], ['revenue', 'Revenue'], ['roas', 'ROAS'], ['cac', 'CAC']];
+    var metricSeg = '<div class="seg" data-seg="metric">' + metricOpts.map(function (o) {
+      return '<button data-v="' + o[0] + '" aria-pressed="' + (state.metric === o[0]) + '">' + o[1] + '</button>';
+    }).join('') + '</div>';
+
+    // -- KPIs --
+    var kpis = [
+      { lbl: 'Total Spend YTD', val: PF.usdK(ty.spend), dlt: PF.delta(vsLY, 1) + ' <span class="flat">vs LY</span>' },
+      { lbl: 'vs LY %', val: PF.delta(vsLY, 1), dlt: '<span class="flat">' + PF.usdK(ty.spend - ly.spend) + ' change YoY</span>' },
+      { lbl: 'Blended ROAS', val: ty.roas.toFixed(2) + 'x', dlt: PF.delta(roasDelta, 1) + ' <span class="flat">vs LY</span>' },
+      { lbl: 'Blended CAC', val: PF.usd(ty.cac, 2), dlt: PF.delta(cacDelta, 1, true) + ' <span class="flat">vs LY</span>' },
+      { lbl: 'Revenue from Paid', val: PF.usdK(ty.revenue), dlt: PF.delta(revDelta, 1) + ' <span class="flat">vs LY</span>' },
+      { lbl: 'Paid share of revenue', val: PF.pct(paidShare, 1), dlt: '<span class="flat">of ' + PF.usdK(TOTAL_REVENUE_TTM) + ' total revenue (TTM, est.)</span>' }
+    ];
+    var kpiHtml = '<div class="grid g3">' + kpis.map(function (k) {
+      return '<div class="kpi"><div class="lbl">' + k.lbl + '</div><div class="val">' + k.val + '</div><div class="dlt">' + k.dlt + '</div></div>';
+    }).join('') + '</div>';
+
+    // -- table --
+    var rows = PLATFORM_DEFS.filter(function (p) { return keys.indexOf(p.key) !== -1; }).map(function (p) {
+      var tySpend = sumRange(p.key, 'spend', 12, 23);
+      var lySpend = sumRange(p.key, 'spend', 0, 11);
+      var delta = lySpend > 0 ? (tySpend - lySpend) / lySpend * 100 : 0;
+      var tyRevenue = sumRange(p.key, 'revenue', 12, 23);
+      var lyRevenue = sumRange(p.key, 'revenue', 0, 11);
+      var tyRoas = tySpend > 0 ? tyRevenue / tySpend : 0;
+      var lyRoas = lySpend > 0 ? lyRevenue / lySpend : 0;
+      var tyCac = tyRevenue > 0 ? AOV * tySpend / tyRevenue : 0;
+      var pillClass = delta > 0.05 ? 'good' : (delta < -0.05 ? 'bad' : 'mute');
+      var arrow = delta > 0.05 ? '▲ ' : (delta < -0.05 ? '▼ ' : '');
+      var pill = '<span class="pill ' + pillClass + '">' + arrow + Math.abs(delta).toFixed(1) + '%</span>';
+      return '<tr>' +
+        '<td>' + p.name + '</td>' +
+        '<td class="num" data-v="' + tySpend + '">' + PF.usd(tySpend, 0) + '</td>' +
+        '<td class="num" data-v="' + lySpend + '">' + PF.usd(lySpend, 0) + '</td>' +
+        '<td class="num" data-v="' + delta + '">' + pill + '</td>' +
+        '<td class="num" data-v="' + tyRevenue + '">' + PF.usd(tyRevenue, 0) + '</td>' +
+        '<td class="num" data-v="' + tyRoas + '">' + tyRoas.toFixed(2) + 'x</td>' +
+        '<td class="num" data-v="' + lyRoas + '">' + lyRoas.toFixed(2) + 'x</td>' +
+        '<td class="num" data-v="' + tyCac + '">' + PF.usd(tyCac, 2) + '</td>' +
+        '</tr>';
+    }).join('');
+
+    // -- assemble --
+    main.innerHTML =
+      PF.crumbs('Ad Spend YoY') +
+      '<h1>Ad Spend — Year over Year</h1>' +
+      '<p class="sub">Total paid investment across platforms compared year over year, with efficiency held alongside spend so growth is never read in isolation.</p>' +
+      '<div class="card">' +
+        '<div class="controls"><span class="sub" style="margin:0">Platform</span>' + platformSeg + '<span class="spacer"></span><span class="sub" style="margin:0">Metric</span>' + metricSeg + '</div>' +
+        kpiHtml +
+      '</div>' +
+      '<h2>Monthly ' + (metric === 'roas' ? 'ROAS' : metric === 'cac' ? 'CAC' : metric.charAt(0).toUpperCase() + metric.slice(1)) + ' — this year vs last year</h2>' +
+      '<div class="card"><div class="chart-wrap"><canvas id="chart1"></canvas></div></div>' +
+      '<h2>Spend by platform — trailing 24 months</h2>' +
+      '<div class="card"><div class="chart-wrap tall"><canvas id="chart2"></canvas></div></div>' +
+      '<h2>Efficiency at scale — monthly spend vs blended ROAS</h2>' +
+      '<div class="card"><div class="chart-wrap"><canvas id="chart3"></canvas></div>' +
+        '<p class="note">Each point is one calendar month. Months with heavier seasonal spend (Nov/Dec) tend to cluster at lower ROAS — scaling spend compresses efficiency before it improves it.</p>' +
+      '</div>' +
+      '<h2>By platform</h2>' +
+      '<div class="card"><div class="tbl-scroll"><table>' +
+        '<thead><tr>' +
+        '<th class="sortable" data-sort="text">Platform</th>' +
+        '<th class="sortable num" data-sort="num">Spend TY</th>' +
+        '<th class="sortable num" data-sort="num">Spend LY</th>' +
+        '<th class="sortable num" data-sort="num">&Delta;%</th>' +
+        '<th class="sortable num" data-sort="num">Revenue TY</th>' +
+        '<th class="sortable num" data-sort="num">ROAS TY</th>' +
+        '<th class="sortable num" data-sort="num">ROAS LY</th>' +
+        '<th class="sortable num" data-sort="num">CAC TY</th>' +
+        '</tr></thead><tbody>' + rows + '</tbody>' +
+      '</table></div>' +
+      '<p class="note">All figures on this page are synthetic and deterministically generated for demonstration. "This year" = trailing 12 months through Aug 2026; "last year" = the 12 months before that. Total company revenue is a synthetic estimate used only to compute paid-media share.</p></div>';
+
+    // -- charts --
+    PF.applyChartDefaults();
+    if (chart1) chart1.destroy();
+    if (chart2) chart2.destroy();
+    if (chart3) chart3.destroy();
+
+    var tyVals = [], lyVals = [];
+    for (var i = 0; i < 12; i++) { lyVals.push(monthMetric(i, keys, metric)); tyVals.push(monthMetric(i + 12, keys, metric)); }
+
+    chart1 = new Chart(document.getElementById('chart1').getContext('2d'), {
+      type: 'bar',
+      data: {
+        labels: LABELS_12,
+        datasets: [
+          { label: 'Last year', data: lyVals, backgroundColor: LY_COLOR, borderRadius: 4, maxBarThickness: 26 },
+          { label: 'This year', data: tyVals, backgroundColor: TY_COLOR, borderRadius: 4, maxBarThickness: 26 }
+        ]
+      },
+      options: {
+        scales: {
+          x: { grid: { display: false, color: c.line }, ticks: { color: c.muted } },
+          y: { beginAtZero: true, grid: { color: c.line }, ticks: { color: c.muted, callback: function (v) { return fmtByMetric(metric, v); } } }
+        },
+        plugins: {
+          tooltip: { callbacks: { label: function (ctx) { return ctx.dataset.label + ': ' + fmtByMetric(metric, ctx.parsed.y); } } }
+        }
+      }
+    });
+
+    var platDatasets = PLATFORM_DEFS.filter(function (p) { return keys.indexOf(p.key) !== -1; }).map(function (p) {
+      return { label: p.name, data: DATA[p.key].spend.slice(0, 24), backgroundColor: PLATFORM_COLOR[p.key], borderRadius: 3 };
+    });
+    chart2 = new Chart(document.getElementById('chart2').getContext('2d'), {
+      type: 'bar',
+      data: { labels: LABELS_24, datasets: platDatasets },
+      options: {
+        scales: {
+          x: { stacked: true, grid: { display: false, color: c.line }, ticks: { color: c.muted, maxRotation: 90, minRotation: 90 } },
+          y: { stacked: true, beginAtZero: true, grid: { color: c.line }, ticks: { color: c.muted, callback: function (v) { return PF.usdK(v); } } }
+        },
+        plugins: {
+          tooltip: { callbacks: { label: function (ctx) { return ctx.dataset.label + ': ' + PF.usd(ctx.parsed.y, 0); } } }
+        }
+      }
+    });
+
+    var scatterTY = [], scatterLY = [];
+    for (var t2 = 0; t2 < 12; t2++) {
+      scatterLY.push({ x: monthMetric(t2, keys, 'spend'), y: monthMetric(t2, keys, 'roas') });
+      scatterTY.push({ x: monthMetric(t2 + 12, keys, 'spend'), y: monthMetric(t2 + 12, keys, 'roas') });
+    }
+    chart3 = new Chart(document.getElementById('chart3').getContext('2d'), {
+      type: 'scatter',
+      data: {
+        datasets: [
+          { label: 'Last year', data: scatterLY, backgroundColor: LY_COLOR, pointRadius: 6, pointHoverRadius: 8 },
+          { label: 'This year', data: scatterTY, backgroundColor: TY_COLOR, pointRadius: 6, pointHoverRadius: 8 }
+        ]
+      },
+      options: {
+        scales: {
+          x: { title: { display: true, text: 'Monthly spend', color: c.muted }, grid: { color: c.line }, ticks: { color: c.muted, callback: function (v) { return PF.usdK(v); } } },
+          y: { title: { display: true, text: 'Blended ROAS', color: c.muted }, grid: { color: c.line }, ticks: { color: c.muted, callback: function (v) { return v.toFixed(1) + 'x'; } } }
+        },
+        plugins: {
+          tooltip: { callbacks: { label: function (ctx) { return ctx.dataset.label + ': ' + PF.usdK(ctx.parsed.x) + ' → ' + ctx.parsed.y.toFixed(2) + 'x'; } } }
+        }
+      }
+    });
+
+    PF.initSeg(main, function (name, val) {
+      if (name === 'platform') state.platform = val;
+      if (name === 'metric') state.metric = val;
+      render();
+    });
+    PF.initSort(main);
+  }
+
+  PF.chrome('ad-spend-yoy.html');
+  render();
+  PF.foot();
+})();
+</script>
+</body>
+</html>

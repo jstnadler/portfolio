@@ -1,0 +1,176 @@
+/* ─────────────────────────────────────────────────────────────────────────────
+   Portfolio shell — Justin Adler
+   Mirrors the production reports-site design language (light #f4f4f1 / dark
+   #141413, 1040px column, system font stack, blue #2a78d6 accent) so these read
+   as the same system as the real dashboards they were rebuilt from.
+   Dashboards: synthetic data. Storefront replicas: real public catalog content.
+   ───────────────────────────────────────────────────────────────────────────── */
+
+:root {
+  color-scheme: light dark;
+  --bg: #f4f4f1;
+  --fg: #0b0b0b;
+  --muted: #6b6a65;
+  --faint: #8a8984;
+  --line: #e6e6e3;
+  --card: #ffffff;
+  --card-alt: #fafaf8;
+  --accent: #2a78d6;
+  --good: #1f9d55;
+  --warn: #d97706;
+  --bad: #d64545;
+  --chip: #ececeA;
+  --shadow: 0 1px 2px rgba(0,0,0,.04), 0 4px 14px rgba(0,0,0,.05);
+  --radius: 12px;
+}
+
+:root[data-theme="dark"] {
+  --bg: #141413;
+  --fg: #ffffff;
+  --muted: #a3a29a;
+  --faint: #8f8e86;
+  --line: #33322f;
+  --card: #1d1d1b;
+  --card-alt: #232320;
+  --accent: #5aa2f0;
+  --good: #4ade80;
+  --warn: #fbbf24;
+  --bad: #f87171;
+  --chip: #2a2a27;
+  --shadow: none;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.5;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Top bar ───────────────────────────────────────────────────────────────── */
+.pf-nav {
+  position: sticky; top: 0; z-index: 50;
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: saturate(180%) blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+.pf-nav-inner {
+  max-width: 1040px; margin: 0 auto; padding: 10px 24px;
+  display: flex; align-items: center; gap: 18px;
+}
+.pf-brand { font-weight: 700; font-size: 15px; letter-spacing: -.01em; text-decoration: none; color: var(--fg); white-space: nowrap; }
+.pf-brand span { color: var(--muted); font-weight: 500; }
+.pf-links { display: flex; gap: 14px; margin-left: auto; align-items: center; flex-wrap: wrap; }
+.pf-links a { color: var(--muted); text-decoration: none; font-size: 13px; }
+.pf-links a:hover, .pf-links a.active { color: var(--accent); }
+.pf-theme {
+  background: var(--chip); border: 1px solid var(--line); color: var(--fg);
+  border-radius: 999px; padding: 4px 11px; font-size: 12px; cursor: pointer; line-height: 1.4;
+}
+.pf-theme:hover { border-color: var(--accent); }
+
+/* ── Synthetic-data banner ─────────────────────────────────────────────────── */
+.pf-banner {
+  background: linear-gradient(90deg, rgba(42,120,214,.10), rgba(42,120,214,.02));
+  border-bottom: 1px solid var(--line);
+  font-size: 12.5px; color: var(--muted);
+}
+.pf-banner-inner { max-width: 1040px; margin: 0 auto; padding: 8px 24px; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.pf-banner b { color: var(--fg); font-weight: 600; }
+
+/* ── Layout ────────────────────────────────────────────────────────────────── */
+.wrap { max-width: 1040px; margin: 0 auto; padding: 22px 24px 8px; }
+main   { max-width: 1040px; margin: 0 auto; padding: 0 24px 48px; }
+.crumbs { font-size: 12.5px; color: var(--faint); margin: 2px 0 14px; }
+.crumbs a { color: var(--muted); text-decoration: none; }
+.crumbs a:hover { color: var(--accent); text-decoration: underline; }
+.crumbs .sep { margin: 0 6px; color: var(--line); }
+
+h1 { font-size: 26px; letter-spacing: -.02em; margin: 0 0 4px; }
+h2 { font-size: 16px; letter-spacing: -.01em; margin: 26px 0 10px; }
+h3 { font-size: 13px; margin: 0 0 8px; color: var(--muted); font-weight: 600; }
+.sub { color: var(--muted); font-size: 13.5px; margin: 0 0 18px; max-width: 74ch; }
+
+/* ── Cards ─────────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow);
+}
+.grid { display: grid; gap: 12px; }
+.g2 { grid-template-columns: repeat(2, 1fr); }
+.g3 { grid-template-columns: repeat(3, 1fr); }
+.g4 { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 860px) { .g3, .g4 { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .g2, .g3, .g4 { grid-template-columns: 1fr; } }
+
+/* ── KPI tiles ─────────────────────────────────────────────────────────────── */
+.kpi { background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); padding: 13px 15px; box-shadow: var(--shadow); }
+.kpi .lbl { font-size: 11.5px; text-transform: uppercase; letter-spacing: .045em; color: var(--faint); margin-bottom: 5px; }
+.kpi .val { font-size: 25px; font-weight: 700; letter-spacing: -.025em; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.kpi .dlt { font-size: 12px; margin-top: 4px; font-variant-numeric: tabular-nums; }
+.up   { color: var(--good); }
+.down { color: var(--bad); }
+.flat { color: var(--muted); }
+
+/* ── Controls ──────────────────────────────────────────────────────────────── */
+.controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 0 0 14px; }
+.seg { display: inline-flex; background: var(--chip); border: 1px solid var(--line); border-radius: 999px; padding: 2px; }
+.seg button {
+  border: 0; background: transparent; color: var(--muted); font: inherit; font-size: 12.5px;
+  padding: 5px 13px; border-radius: 999px; cursor: pointer; white-space: nowrap;
+}
+.seg button[aria-pressed="true"] { background: var(--card); color: var(--fg); box-shadow: var(--shadow); font-weight: 600; }
+select, input[type="search"] {
+  background: var(--card); color: var(--fg); border: 1px solid var(--line);
+  border-radius: 8px; padding: 6px 10px; font: inherit; font-size: 12.5px;
+}
+select:focus, input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.spacer { margin-left: auto; }
+
+/* ── Charts ────────────────────────────────────────────────────────────────── */
+.chart-wrap { position: relative; height: 300px; }
+.chart-wrap.tall { height: 380px; }
+.chart-wrap.short { height: 210px; }
+
+/* ── Tables ────────────────────────────────────────────────────────────────── */
+.tbl-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+thead th {
+  text-align: left; font-size: 11.5px; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--faint); font-weight: 600; padding: 8px 10px; border-bottom: 1px solid var(--line);
+  white-space: nowrap; position: sticky; top: 0; background: var(--card);
+}
+thead th.sortable { cursor: pointer; user-select: none; }
+thead th.sortable:hover { color: var(--accent); }
+thead th .arrow { opacity: .45; font-size: 9px; }
+tbody td { padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody tr:hover { background: var(--card-alt); }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* ── Bits ──────────────────────────────────────────────────────────────────── */
+.pill { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 11.5px; font-weight: 600; }
+.pill.good { background: color-mix(in srgb, var(--good) 16%, transparent); color: var(--good); }
+.pill.warn { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
+.pill.bad  { background: color-mix(in srgb, var(--bad) 16%, transparent);  color: var(--bad); }
+.pill.mute { background: var(--chip); color: var(--muted); }
+.bar-mini { height: 6px; border-radius: 3px; background: var(--chip); overflow: hidden; min-width: 54px; }
+.bar-mini > i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+.note { font-size: 12px; color: var(--faint); margin-top: 10px; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 10px; }
+.legend i { display: inline-block; width: 9px; height: 9px; border-radius: 2px; margin-right: 5px; }
+
+footer.pf-foot {
+  max-width: 1040px; margin: 0 auto; padding: 22px 24px 48px;
+  border-top: 1px solid var(--line); color: var(--faint); font-size: 12px;
+}
+footer.pf-foot a { color: var(--muted); text-decoration: none; }
+footer.pf-foot a:hover { text-decoration: underline; }
+
+@media print { .pf-nav, .pf-theme { display: none; } }

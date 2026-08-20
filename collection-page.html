@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Collection Page — Justin Adler Portfolio</title>
+<link rel="stylesheet" href="assets/portfolio.css">
+<script src="assets/portfolio.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Assistant:wght@500;600;700;800&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ── Collection-replica styles, scoped entirely under .col-demo so nothing
+     leaks into the portfolio shell. Real-site typography (Assistant headings,
+     Montserrat body), white surface, near-black text — held on a fixed light
+     "device frame" so it stays legible even when the portfolio shell is in
+     dark mode. ── */
+  .col-demo {
+    --col-fg: rgb(18,18,18);
+    --col-muted: #6b6b64;
+    --col-faint: #8f8d84;
+    --col-bg: #ffffff;
+    --col-surface: #faf9f6;
+    --col-line: #e3ddd0;
+    --col-accent: #2f5233;
+    --col-sale: #b3261e;
+    --col-pill-bg: #f2efe7;
+    --col-media-bg: #ffffff;
+    margin-top: 18px;
+    background: var(--col-bg);
+    color: var(--col-fg);
+    border: 1px solid var(--col-line);
+    border-radius: 14px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 14px 34px rgba(0,0,0,.10);
+    overflow: hidden;
+    font-family: 'Montserrat', -apple-system, sans-serif;
+  }
+  .col-demo__framebar {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--col-surface); border-bottom: 1px solid var(--col-line);
+    padding: 9px 14px;
+  }
+  .col-demo__framebar .dot { width: 8px; height: 8px; border-radius: 50%; background: #d8d2c4; display: inline-block; }
+  .col-demo__framebar-url {
+    margin-left: 6px; font-size: 11.5px; color: var(--col-muted); font-family: 'Montserrat', sans-serif;
+    background: #fff; border: 1px solid var(--col-line); border-radius: 999px; padding: 3px 12px;
+  }
+  .col-demo__inner { padding: 20px 22px 26px; }
+
+  .col-demo h1, .col-demo h2, .col-demo h3, .col-demo h4 { font-family: 'Assistant', -apple-system, sans-serif; }
+
+  .col-demo__banner h2 { margin: 0 0 6px; font-size: 24px; font-weight: 800; color: var(--col-fg); letter-spacing: -.01em; }
+  .col-demo__banner p { margin: 0 0 8px; color: var(--col-muted); font-size: 13.5px; max-width: 64ch; }
+  .col-demo__count-line { font-size: 12.5px; font-weight: 600; color: var(--col-accent); }
+
+  .col-demo__toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 16px 0 14px; border-top: 1px solid var(--col-line); border-bottom: 1px solid var(--col-line); padding: 10px 0; }
+  .col-demo__filters-btn { display: none; }
+  .col-demo__results { font-size: 12.5px; color: var(--col-muted); }
+  .col-demo__sort { margin-left: auto; display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--col-muted); }
+  .col-demo__sort select, .col-demo__sort label { font-family: 'Montserrat', sans-serif; }
+  .col-demo select {
+    background: #fff; color: var(--col-fg); border: 1px solid var(--col-line);
+    border-radius: 8px; padding: 6px 10px; font: inherit; font-size: 12.5px;
+  }
+  .col-demo select:focus { outline: 2px solid var(--col-accent); outline-offset: 1px; }
+
+  .col-demo__body { display: grid; grid-template-columns: 232px 1fr; gap: 22px; align-items: start; }
+  .col-demo__backdrop { display: none; }
+  .col-demo__sidebar {
+    background: var(--col-surface); border: 1px solid var(--col-line); border-radius: 10px;
+    padding: 14px 16px; position: sticky; top: 12px;
+  }
+  .col-demo__sidebar-head { display: none; }
+  .col-demo__facet { border-bottom: 1px solid var(--col-line); padding: 10px 0; }
+  .col-demo__facet:last-of-type { border-bottom: 0; }
+  .col-demo__facet summary {
+    cursor: pointer; font-size: 12.5px; font-weight: 700; color: var(--col-fg); list-style: none;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .col-demo__facet summary::-webkit-details-marker { display: none; }
+  .col-demo__facet summary::after { content: '+'; color: var(--col-faint); font-weight: 400; }
+  .col-demo__facet[open] summary::after { content: '\2212'; }
+  .col-demo__facet-list { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+  .col-demo__option { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 12.5px; color: var(--col-fg); cursor: pointer; padding: 2px 0; }
+  .col-demo__option-left { display: flex; align-items: center; gap: 7px; }
+  .col-demo__option input { accent-color: var(--col-accent); }
+  .col-demo__count-badge { color: var(--col-faint); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+  .col-demo__count-badge.is-zero { opacity: .45; }
+  .col-demo__price-label { font-size: 12px; color: var(--col-muted); margin-bottom: 6px; font-variant-numeric: tabular-nums; }
+  .col-demo__price-wrap input[type="range"] { width: 100%; margin: 4px 0; accent-color: var(--col-accent); }
+  .col-demo__availability { display: flex; align-items: center; justify-content: space-between; font-size: 12.5px; margin-top: 4px; }
+  .col-demo__clearbtn {
+    width: 100%; margin-top: 12px; background: #fff; border: 1px solid var(--col-line); color: var(--col-fg);
+    border-radius: 8px; padding: 7px; font-size: 12.5px; cursor: pointer; font-family: inherit;
+  }
+  .col-demo__clearbtn:hover { border-color: var(--col-accent); color: var(--col-accent); }
+
+  .col-demo__chips { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; min-height: 0; }
+  .col-demo__chip { display: inline-flex; align-items: center; gap: 6px; background: var(--col-pill-bg); border-radius: 999px; padding: 4px 6px 4px 12px; font-size: 12px; color: var(--col-fg); }
+  .col-demo__chip-x { border: 0; background: transparent; color: var(--col-faint); cursor: pointer; font-size: 14px; line-height: 1; padding: 2px 6px; border-radius: 999px; }
+  .col-demo__chip-x:hover { background: var(--col-sale); color: #fff; }
+  .col-demo__chip-clear { border: 0; background: transparent; color: var(--col-accent); font-size: 12px; cursor: pointer; text-decoration: underline; padding: 4px 2px; font-family: inherit; }
+
+  .col-demo__grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .col-demo__card { background: #fff; border: 1px solid var(--col-line); border-radius: 10px; overflow: hidden; display: flex; flex-direction: column; position: relative; }
+  .col-demo__media { position: relative; aspect-ratio: 1 / 1; background: var(--col-media-bg); }
+  .col-demo__media img { width: 100%; height: 100%; display: block; object-fit: contain; padding: 10px; }
+  .col-demo__badge-oos { position: absolute; inset: 0; background: rgba(20,20,19,.5); color: #fff; display: flex; align-items: center; justify-content: center; font-size: 12.5px; font-weight: 600; letter-spacing: .03em; }
+  .col-demo__body-text { padding: 12px 13px 14px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+
+  .col-demo__eyebrow { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--col-muted); }
+  .col-demo__badges { display: flex; gap: 6px; flex-wrap: wrap; }
+  .col-demo__badge-fotm { display: inline-block; background: var(--col-accent); color: #fff; font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 4px; letter-spacing: .02em; }
+  .col-demo__badge-save { display: inline-block; background: var(--col-sale); color: #fff; font-size: 10.5px; font-weight: 700; padding: 3px 9px; border-radius: 4px; }
+
+  .col-demo__rating-row { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--col-faint); }
+  .col-demo__stars { position: relative; display: inline-block; font-size: 12px; letter-spacing: 1px; }
+  .col-demo__stars-bg { color: var(--col-pill-bg); }
+  .col-demo__stars-fg { position: absolute; left: 0; top: 0; overflow: hidden; white-space: nowrap; color: #c98f2a; }
+
+  .col-demo__title { font-size: 14.5px; font-weight: 700; margin: 0; color: var(--col-fg); line-height: 1.3; }
+
+  .col-demo__pills { display: flex; gap: 5px; flex-wrap: wrap; }
+  .col-demo__attr-pill { font-size: 10.5px; font-weight: 600; color: var(--col-accent); background: var(--col-pill-bg); border: 1px solid var(--col-line); border-radius: 999px; padding: 2px 8px; }
+
+  .col-demo__price-row { display: flex; align-items: baseline; gap: 7px; margin-top: 2px; flex-wrap: wrap; }
+  .col-demo__compare { font-size: 12px; color: var(--col-faint); text-decoration: line-through; }
+  .col-demo__price { font-size: 15px; font-weight: 700; color: var(--col-fg); }
+  .col-demo__price.is-sale { color: var(--col-sale); }
+  .col-demo__off { font-size: 11px; font-weight: 700; color: var(--col-sale); }
+
+  .col-demo__month { align-self: flex-start; margin-top: 2px; font-size: 10px; font-weight: 700; letter-spacing: .08em; color: var(--col-muted); background: var(--col-surface); border: 1px solid var(--col-line); border-radius: 4px; padding: 2px 7px; }
+
+  .col-demo__empty { text-align: center; padding: 48px 20px; color: var(--col-muted); background: var(--col-surface); border: 1px dashed var(--col-line); border-radius: 10px; }
+  .col-demo__empty button { margin-top: 10px; }
+
+  .col-demo__loadmore-wrap { display: flex; justify-content: center; margin-top: 20px; }
+  .col-demo__loadmore { background: var(--col-fg); color: #fff; border: 0; border-radius: 999px; padding: 9px 22px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Montserrat', sans-serif; }
+  .col-demo__loadmore:disabled { background: var(--col-pill-bg); color: var(--col-faint); cursor: not-allowed; }
+
+  .col-demo__footnote { font-size: 11.5px; color: var(--col-faint); margin-top: 18px; border-top: 1px solid var(--col-line); padding-top: 10px; }
+
+  @media (max-width: 860px) {
+    .col-demo__grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 780px) {
+    .col-demo__body { grid-template-columns: 1fr; }
+    .col-demo__filters-btn { display: inline-flex; align-items: center; gap: 6px; background: var(--col-pill-bg); border: 1px solid var(--col-line); border-radius: 999px; padding: 6px 14px; font-size: 12.5px; cursor: pointer; color: var(--col-fg); font-family: inherit; }
+    .col-demo__sidebar {
+      position: fixed; top: 0; left: 0; height: 100vh; width: 82vw; max-width: 320px; z-index: 70;
+      transform: translateX(-105%); transition: transform .25s ease; overflow-y: auto; border-radius: 0;
+    }
+    .col-demo__sidebar-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .col-demo__sidebar-close { border: 0; background: var(--col-pill-bg); border-radius: 999px; width: 28px; height: 28px; cursor: pointer; font-size: 15px; }
+    .col-demo--filters-open .col-demo__sidebar { transform: translateX(0); }
+    .col-demo--filters-open .col-demo__backdrop { display: block; position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 60; }
+  }
+  @media (max-width: 520px) {
+    .col-demo__grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .col-demo__body-text { padding: 10px; }
+  }
+</style>
+</head>
+<body>
+<script>PF.chrome('collection-page.html');</script>
+
+<main>
+<script>document.write(PF.crumbs('Collection Page'));</script>
+
+<div class="card">
+  <h3>Case note</h3>
+  <p class="sub" style="margin-bottom:0;">
+    This page demonstrates a theme-rendered Shopify collection template: faceted filtering, a working
+    sort control, and one reusable product-card snippet driving an entire grid, built natively in Liquid,
+    CSS and JavaScript rather than through a page-builder app. Facet counts, active-filter chips, and the
+    load-more pagination all read from a single client-side filter state, the same pattern used to keep
+    a real collection grid fast without a full page reload. This is a static replica of
+    <code>teeccino.com/collections/all</code> for demonstration purposes: it reproduces the real
+    product-card anatomy and a subset of the real catalog using actual Teeccino packaging photography,
+    but the prices, ratings, review counts and attribute-pill combinations shown are illustrative sample
+    data, not a verified export of the live catalog or its allergen/ingredient facts.
+  </p>
+</div>
+
+<div class="col-demo" id="colDemo">
+  <div class="col-demo__framebar">
+    <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+    <span class="col-demo__framebar-url">teeccino.com/collections/all</span>
+  </div>
+  <div class="col-demo__inner">
+
+  <div class="col-demo__banner">
+    <h2>Herbal Coffee</h2>
+    <p>Caffeine-free herbal coffee, latte, and tea — roasted chicory, carob, barley, dates and nuts,
+      brewed like the real thing. Filter by flavor, format, or diet to find your cup.</p>
+    <div class="col-demo__count-line" id="colBannerCount">23 products</div>
+  </div>
+
+  <div class="col-demo__toolbar">
+    <button type="button" class="col-demo__filters-btn" id="colFiltersBtn" aria-expanded="false" aria-controls="colSidebar">Filters</button>
+    <div class="col-demo__results" id="colResults" aria-live="polite">Showing 12 of 23</div>
+    <div class="col-demo__sort">
+      <label for="colSort">Sort</label>
+      <select id="colSort">
+        <option value="featured">Featured</option>
+        <option value="best">Best selling</option>
+        <option value="priceAsc">Price, low to high</option>
+        <option value="priceDesc">Price, high to low</option>
+        <option value="new">Newest</option>
+        <option value="rated">Top rated</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="col-demo__body">
+    <div class="col-demo__backdrop" id="colBackdrop"></div>
+
+    <aside class="col-demo__sidebar" id="colSidebar">
+      <div class="col-demo__sidebar-head">
+        <strong>Filters</strong>
+        <button type="button" class="col-demo__sidebar-close" id="colSidebarClose" aria-label="Close filters">×</button>
+      </div>
+
+      <details class="col-demo__facet" open>
+        <summary>Flavor</summary>
+        <div class="col-demo__facet-list" id="facetFlavor"></div>
+      </details>
+
+      <details class="col-demo__facet" open>
+        <summary>Format</summary>
+        <div class="col-demo__facet-list" id="facetFormat"></div>
+      </details>
+
+      <details class="col-demo__facet" open>
+        <summary>Attributes</summary>
+        <div class="col-demo__facet-list" id="facetAttr"></div>
+      </details>
+
+      <details class="col-demo__facet" open>
+        <summary>Price</summary>
+        <div class="col-demo__price-wrap">
+          <div class="col-demo__price-label" id="colPriceLabel">$0 &ndash; $20</div>
+          <label for="colPriceMin" style="font-size:11px;color:var(--col-faint);">Min</label>
+          <input type="range" id="colPriceMin" min="0" max="20" step="1" value="0">
+          <label for="colPriceMax" style="font-size:11px;color:var(--col-faint);">Max</label>
+          <input type="range" id="colPriceMax" min="0" max="20" step="1" value="20">
+        </div>
+      </details>
+
+      <details class="col-demo__facet" open>
+        <summary>Availability</summary>
+        <div class="col-demo__availability">
+          <label class="col-demo__option-left" for="colInStock" style="cursor:pointer;">
+            <input type="checkbox" id="colInStock">
+            <span>In stock only</span>
+          </label>
+          <span class="col-demo__count-badge" id="colInStockCount">(0)</span>
+        </div>
+      </details>
+
+      <button type="button" class="col-demo__clearbtn" id="colClearAll">Clear all filters</button>
+    </aside>
+
+    <div class="col-demo__main">
+      <div class="col-demo__chips" id="colChips" hidden></div>
+
+      <div class="col-demo__grid" id="colGrid"></div>
+
+      <div class="col-demo__empty" id="colEmpty" role="status" hidden>
+        <div><strong>No products match those filters.</strong></div>
+        <p style="margin:6px 0 0;font-size:12.5px;">Try widening your price range or clearing a facet.</p>
+        <button type="button" class="col-demo__clearbtn" id="colEmptyClear" style="width:auto;padding:8px 16px;">Clear all filters</button>
+      </div>
+
+      <div class="col-demo__loadmore-wrap" id="colLoadMoreWrap">
+        <button type="button" class="col-demo__loadmore" id="colLoadMore">Load more</button>
+      </div>
+    </div>
+  </div>
+
+  <p class="col-demo__footnote">Sample data. Every price, rating and attribute-pill combination on this
+    replica is synthetic and used for layout demonstration only.</p>
+  </div>
+</div>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  var FLAVORS = ['French Roast','Vanilla Nut','Hazelnut','Mocha','Maya Chai','Almond Amaretto','Dandelion Dark Roast','Chocolate Mint','Original','Java','Miraculous Mushrooms'];
+  var FORMATS = ['Ground','Tea Bags','Instant','Instant Latte','Single-Serve','Sampler'];
+  var ATTRS   = ['Organic','Caffeine Free','Prebiotic','Gluten Free'];
+
+  var IMG = {
+    FR_INSTANT: 'assets/img/30008L-FR-Instant-Hero-1.webp',
+    FR_LATTE:   'assets/img/31008L-FR-Latte-Hero-1-l.webp',
+    VN_TEA:     'assets/img/40011-VN-Tea-Hero-1_99e7.webp',
+    VN_LATTE:   'assets/img/31009L-VN-Latte-Hero-1_4.webp',
+    HZ_INSTANT: 'assets/img/30010L-HZ-Instant-Hero-1.webp',
+    HZ_LATTE:   'assets/img/31010L-HZ-Latte-Hero-1.w.webp',
+    HZ_TEA:     'assets/img/40061-HZ-Tea-Hero-1_e5d1.webp',
+    MO_INSTANT: 'assets/img/30011L-MO-Instant-Hero-1.webp',
+    MO_LATTE:   'assets/img/31011L-MO-Latte-Hero-1.w.webp',
+    MA_LATTE:   'assets/img/31014L-MA-Latte-Hero-1_7.webp',
+    AP_INSTANT: 'assets/img/30007L-AP-Instant-Hero-1.webp',
+    AP_LATTE:   'assets/img/31007L-AP-Latte-Hero-1_4.webp',
+    DB_INSTANT: 'assets/img/30005L-DB-Instant-Hero-1.webp',
+    DB_LATTE:   'assets/img/31005L-DB-Latte-Hero-1.w.webp',
+    MM_INSTANT: 'assets/img/30013L-MM-Instant-Hero-1.webp',
+    ET_TEA:     'assets/img/40051-ET-Tea-Hero-1_50cc.webp'
+  };
+
+  // id, flavor, format, img, attrs[], price, compareAt, rating, reviews, stock, days-since-added, fotm, month
+  var PRODUCTS = [
+    { id: 1,  flavor: 'French Roast',           format: 'Ground',        img: IMG.FR_INSTANT, attrs: ['Organic','Caffeine Free','Prebiotic'],           price: 13.60, compareAt: 18.49, rating: 4.6, reviews: 734, stock: true,  days: 5,   fotm: true, month: 'AUGUST' },
+    { id: 2,  flavor: 'French Roast',           format: 'Instant',       img: IMG.FR_INSTANT, attrs: ['Organic','Caffeine Free'],                        price: 8.99,  compareAt: null,  rating: 4.7, reviews: 210, stock: true,  days: 120 },
+    { id: 3,  flavor: 'French Roast',           format: 'Instant Latte', img: IMG.FR_LATTE,   attrs: ['Caffeine Free'],                                  price: 15.99, compareAt: null,  rating: 4.5, reviews: 88,  stock: true,  days: 200 },
+    { id: 4,  flavor: 'Vanilla Nut',            format: 'Tea Bags',      img: IMG.VN_TEA,     attrs: ['Organic','Caffeine Free','Gluten Free'],          price: 6.99,  compareAt: null,  rating: 4.8, reviews: 455, stock: true,  days: 45 },
+    { id: 5,  flavor: 'Vanilla Nut',            format: 'Instant Latte', img: IMG.VN_LATTE,   attrs: ['Caffeine Free'],                                  price: 15.99, compareAt: 17.99, rating: 4.4, reviews: 132, stock: true,  days: 300 },
+    { id: 6,  flavor: 'Hazelnut',               format: 'Instant',       img: IMG.HZ_INSTANT, attrs: ['Organic','Caffeine Free'],                        price: 8.99,  compareAt: null,  rating: 4.7, reviews: 389, stock: true,  days: 60 },
+    { id: 7,  flavor: 'Hazelnut',               format: 'Instant Latte', img: IMG.HZ_LATTE,   attrs: ['Caffeine Free','Prebiotic'],                      price: 15.99, compareAt: null,  rating: 4.3, reviews: 96,  stock: true,  days: 250 },
+    { id: 8,  flavor: 'Hazelnut',               format: 'Tea Bags',      img: IMG.HZ_TEA,     attrs: ['Organic','Caffeine Free','Gluten Free'],          price: 6.99,  compareAt: null,  rating: 4.5, reviews: 201, stock: true,  days: 150 },
+    { id: 9,  flavor: 'Mocha',                  format: 'Instant',       img: IMG.MO_INSTANT, attrs: ['Caffeine Free','Prebiotic'],                      price: 8.99,  compareAt: null,  rating: 4.6, reviews: 267, stock: false, days: 90 },
+    { id: 10, flavor: 'Mocha',                  format: 'Instant Latte', img: IMG.MO_LATTE,   attrs: ['Caffeine Free'],                                  price: 15.99, compareAt: 18.99, rating: 4.5, reviews: 112, stock: true,  days: 70 },
+    { id: 11, flavor: 'Maya Chai',               format: 'Instant Latte', img: IMG.MA_LATTE,   attrs: ['Organic','Caffeine Free','Prebiotic','Gluten Free'], price: 15.99, compareAt: null,  rating: 4.7, reviews: 178, stock: true,  days: 20 },
+    { id: 12, flavor: 'Almond Amaretto',        format: 'Instant',       img: IMG.AP_INSTANT, attrs: ['Caffeine Free'],                                  price: 8.99,  compareAt: null,  rating: 4.2, reviews: 77,  stock: true,  days: 220 },
+    { id: 13, flavor: 'Almond Amaretto',        format: 'Instant Latte', img: IMG.AP_LATTE,   attrs: ['Caffeine Free','Prebiotic'],                      price: 15.99, compareAt: 17.99, rating: 4.4, reviews: 65,  stock: true,  days: 15 },
+    { id: 14, flavor: 'Dandelion Dark Roast',   format: 'Instant',       img: IMG.DB_INSTANT, attrs: ['Organic','Caffeine Free','Prebiotic'],            price: 8.99,  compareAt: null,  rating: 4.4, reviews: 120, stock: true,  days: 210 },
+    { id: 15, flavor: 'Dandelion Dark Roast',   format: 'Instant Latte', img: IMG.DB_LATTE,   attrs: ['Caffeine Free'],                                  price: 15.99, compareAt: null,  rating: 4.6, reviews: 58,  stock: true,  days: 50 },
+    { id: 16, flavor: 'Miraculous Mushrooms',   format: 'Instant',       img: IMG.MM_INSTANT, attrs: ['Organic','Caffeine Free'],                        price: 9.99,  compareAt: null,  rating: 4.5, reviews: 144, stock: true,  days: 8 },
+    { id: 17, flavor: 'Original',               format: 'Tea Bags',      img: IMG.ET_TEA,     attrs: ['Organic','Caffeine Free','Gluten Free'],          price: 6.99,  compareAt: null,  rating: 4.3, reviews: 410, stock: true,  days: 365 },
+    { id: 18, flavor: 'Chocolate Mint',         format: 'Tea Bags',      img: IMG.ET_TEA,     attrs: ['Caffeine Free','Prebiotic'],                      price: 6.99,  compareAt: 7.99,  rating: 4.2, reviews: 58,  stock: true,  days: 130 },
+    { id: 19, flavor: 'Java',                   format: 'Single-Serve',  img: IMG.MO_INSTANT, attrs: ['Caffeine Free'],                                  price: 9.99,  compareAt: null,  rating: 4.4, reviews: 133, stock: true,  days: 260 },
+    { id: 20, flavor: 'Original',               format: 'Sampler',       img: IMG.FR_INSTANT, attrs: ['Caffeine Free'],                                  price: 12.99, compareAt: null,  rating: 4.6, reviews: 40,  stock: true,  days: 3 },
+    { id: 21, flavor: 'Miraculous Mushrooms',   format: 'Single-Serve',  img: IMG.MM_INSTANT, attrs: ['Organic','Caffeine Free'],                        price: 10.99, compareAt: null,  rating: 4.5, reviews: 51,  stock: false, days: 400 },
+    { id: 22, flavor: 'Hazelnut',               format: 'Ground',        img: IMG.HZ_INSTANT, attrs: ['Organic','Caffeine Free','Prebiotic'],            price: 8.99,  compareAt: null,  rating: 4.5, reviews: 280, stock: true,  days: 100 },
+    { id: 23, flavor: 'Mocha',                  format: 'Sampler',       img: IMG.MO_INSTANT, attrs: ['Caffeine Free'],                                  price: 12.99, compareAt: null,  rating: 4.3, reviews: 40,  stock: false, days: 400 }
+  ];
+
+  var PAGE_SIZE = 12;
+  var LOAD_STEP = 8;
+  var PRICE_MAX = 20;
+
+  var state = {
+    flavors: new Set(),
+    formats: new Set(),
+    attrs: new Set(),
+    priceMin: 0,
+    priceMax: PRICE_MAX,
+    inStock: false,
+    sort: 'featured',
+    visible: PAGE_SIZE
+  };
+
+  var wrapEl = document.getElementById('colDemo');
+  var sidebarEl = document.getElementById('colSidebar');
+  var gridEl = document.getElementById('colGrid');
+  var emptyEl = document.getElementById('colEmpty');
+  var chipsEl = document.getElementById('colChips');
+  var resultsEl = document.getElementById('colResults');
+  var bannerCountEl = document.getElementById('colBannerCount');
+  var loadMoreWrap = document.getElementById('colLoadMoreWrap');
+  var loadMoreBtn = document.getElementById('colLoadMore');
+  var sortSelect = document.getElementById('colSort');
+  var rangeMin = document.getElementById('colPriceMin');
+  var rangeMax = document.getElementById('colPriceMax');
+  var priceLabel = document.getElementById('colPriceLabel');
+  var inStockBox = document.getElementById('colInStock');
+  var inStockCount = document.getElementById('colInStockCount');
+  var filtersBtn = document.getElementById('colFiltersBtn');
+  var backdrop = document.getElementById('colBackdrop');
+  var sidebarClose = document.getElementById('colSidebarClose');
+
+  function titleFor(p) {
+    if (p.format === 'Tea Bags') return p.flavor + ' Herbal Tea';
+    if (p.format === 'Instant Latte') return p.flavor + ' Herbal Coffee Latte';
+    if (p.format === 'Instant') return p.flavor + ' Instant Herbal Coffee';
+    if (p.format === 'Single-Serve') return p.flavor + ' Herbal Coffee Single-Serve Cups';
+    if (p.format === 'Sampler') return p.flavor + ' Herbal Coffee Sampler';
+    return p.flavor + ' Herbal Coffee';
+  }
+
+  function starRow(rating, reviews) {
+    var pct = Math.max(0, Math.min(100, Math.round((rating / 5) * 100)));
+    return '<span class="col-demo__rating-row">' +
+      '<span class="col-demo__stars" aria-label="Rating ' + rating + ' of 5 from ' + reviews + ' reviews">' +
+      '<span class="col-demo__stars-bg">★★★★★</span>' +
+      '<span class="col-demo__stars-fg" style="width:' + pct + '%">★★★★★</span>' +
+      '</span><span>' + reviews + ' Reviews</span></span>';
+  }
+
+  function cardHtml(p) {
+    var savePct = p.compareAt ? Math.round(((p.compareAt - p.price) / p.compareAt) * 100) : 0;
+
+    var badges = '';
+    if (p.fotm) badges += '<span class="col-demo__badge-fotm">Flavor of the Month</span>';
+    if (p.compareAt) badges += '<span class="col-demo__badge-save">Save ' + savePct + '%</span>';
+
+    var priceHtml;
+    if (p.compareAt && p.compareAt > p.price) {
+      priceHtml = '<span class="col-demo__compare">$' + p.compareAt.toFixed(2) + '</span>' +
+        '<span class="col-demo__price is-sale">$' + p.price.toFixed(2) + '</span>' +
+        '<span class="col-demo__off">' + savePct + '% OFF</span>';
+    } else {
+      priceHtml = '<span class="col-demo__price">$' + p.price.toFixed(2) + '</span>';
+    }
+
+    var media = '<div class="col-demo__media">' +
+      '<img src="' + p.img + '" alt="' + p.flavor + ' ' + p.format + ' package photo" loading="lazy" decoding="async">' +
+      (!p.stock ? '<span class="col-demo__badge-oos">Out of stock</span>' : '') +
+      '</div>';
+
+    var pills = p.attrs.map(function (a) { return '<span class="col-demo__attr-pill">' + a + '</span>'; }).join('');
+
+    return '<div class="col-demo__card">' + media +
+      '<div class="col-demo__body-text">' +
+      '<span class="col-demo__eyebrow">' + p.format + '</span>' +
+      (badges ? '<div class="col-demo__badges">' + badges + '</div>' : '') +
+      starRow(p.rating, p.reviews) +
+      '<h3 class="col-demo__title">' + titleFor(p) + '</h3>' +
+      '<div class="col-demo__pills">' + pills + '</div>' +
+      '<div class="col-demo__price-row">' + priceHtml + '</div>' +
+      (p.fotm ? '<span class="col-demo__month">' + p.month + '</span>' : '') +
+      '</div></div>';
+  }
+
+  function matches(p, skip) {
+    skip = skip || {};
+    if (!skip.flavor && state.flavors.size && !state.flavors.has(p.flavor)) return false;
+    if (!skip.format && state.formats.size && !state.formats.has(p.format)) return false;
+    if (!skip.attr && state.attrs.size) {
+      var ok = true;
+      state.attrs.forEach(function (a) { if (p.attrs.indexOf(a) === -1) ok = false; });
+      if (!ok) return false;
+    }
+    if (!skip.stock && state.inStock && !p.stock) return false;
+    if (p.price < state.priceMin || p.price > state.priceMax) return false;
+    return true;
+  }
+
+  function getFiltered() {
+    return PRODUCTS.filter(function (p) { return matches(p, {}); });
+  }
+
+  function sortProducts(list) {
+    var arr = list.slice();
+    if (state.sort === 'best') {
+      arr.sort(function (a, b) { return b.reviews - a.reviews; });
+    } else if (state.sort === 'priceAsc') {
+      arr.sort(function (a, b) { return a.price - b.price; });
+    } else if (state.sort === 'priceDesc') {
+      arr.sort(function (a, b) { return b.price - a.price; });
+    } else if (state.sort === 'new') {
+      arr.sort(function (a, b) { return a.days - b.days; });
+    } else if (state.sort === 'rated') {
+      arr.sort(function (a, b) { return (b.rating - a.rating) || (b.reviews - a.reviews); });
+    }
+    return arr;
+  }
+
+  function buildFacetList(containerId, group, options) {
+    var el = document.getElementById(containerId);
+    el.innerHTML = options.map(function (v) {
+      var id = 'f-' + group + '-' + v.replace(/[^a-z0-9]+/gi, '-');
+      return '<label class="col-demo__option" for="' + id + '">' +
+        '<span class="col-demo__option-left"><input type="checkbox" id="' + id + '" data-group="' + group + '" data-value="' + v + '"><span>' + v + '</span></span>' +
+        '<span class="col-demo__count-badge" data-count-group="' + group + '" data-count-value="' + v + '">(0)</span>' +
+        '</label>';
+    }).join('');
+  }
+
+  function updateFacetCounts() {
+    [['flavor', FLAVORS], ['format', FORMATS]].forEach(function (pair) {
+      var group = pair[0], options = pair[1];
+      options.forEach(function (v) {
+        var skip = {}; skip[group] = true;
+        var count = PRODUCTS.filter(function (p) { return p[group] === v && matches(p, skip); }).length;
+        var badge = document.querySelector('[data-count-group="' + group + '"][data-count-value="' + v + '"]');
+        if (badge) {
+          badge.textContent = '(' + count + ')';
+          badge.classList.toggle('is-zero', count === 0);
+        }
+      });
+    });
+    ATTRS.forEach(function (v) {
+      var count = PRODUCTS.filter(function (p) { return p.attrs.indexOf(v) !== -1 && matches(p, { attr: true }); }).length;
+      var badge = document.querySelector('[data-count-group="attr"][data-count-value="' + v + '"]');
+      if (badge) {
+        badge.textContent = '(' + count + ')';
+        badge.classList.toggle('is-zero', count === 0);
+      }
+    });
+    var stockCount = PRODUCTS.filter(function (p) { return p.stock && matches(p, { stock: true }); }).length;
+    inStockCount.textContent = '(' + stockCount + ')';
+    inStockCount.classList.toggle('is-zero', stockCount === 0);
+  }
+
+  function renderChips() {
+    var chips = [];
+    state.flavors.forEach(function (v) { chips.push({ group: 'flavor', value: v, label: v }); });
+    state.formats.forEach(function (v) { chips.push({ group: 'format', value: v, label: v }); });
+    state.attrs.forEach(function (v) { chips.push({ group: 'attr', value: v, label: v }); });
+    if (state.inStock) chips.push({ group: 'stock', value: 'instock', label: 'In stock only' });
+    if (state.priceMin > 0 || state.priceMax < PRICE_MAX) {
+      chips.push({ group: 'price', value: 'price', label: '$' + state.priceMin + ' – $' + state.priceMax });
+    }
+    if (!chips.length) {
+      chipsEl.innerHTML = '';
+      chipsEl.hidden = true;
+      return;
+    }
+    chipsEl.hidden = false;
+    chipsEl.innerHTML = chips.map(function (c) {
+      return '<span class="col-demo__chip">' + c.label +
+        '<button type="button" class="col-demo__chip-x" data-group="' + c.group + '" data-value="' + c.value + '" aria-label="Remove filter ' + c.label + '">×</button></span>';
+    }).join('') + '<button type="button" class="col-demo__chip-clear" id="colChipClearAll">Clear all</button>';
+  }
+
+  function renderGrid(filtered) {
+    var visible = filtered.slice(0, state.visible);
+    var hasResults = filtered.length > 0;
+    emptyEl.hidden = hasResults;
+    gridEl.hidden = !hasResults;
+    loadMoreWrap.hidden = !hasResults;
+    gridEl.innerHTML = visible.map(cardHtml).join('');
+    if (hasResults) {
+      loadMoreBtn.disabled = state.visible >= filtered.length;
+      loadMoreBtn.textContent = state.visible >= filtered.length ? 'All products shown' : 'Load more';
+    }
+  }
+
+  function updateResults(filtered) {
+    var shown = Math.min(state.visible, filtered.length);
+    resultsEl.textContent = 'Showing ' + shown + ' of ' + filtered.length;
+    bannerCountEl.textContent = filtered.length + (filtered.length === 1 ? ' product' : ' products');
+  }
+
+  function renderAll() {
+    var filtered = sortProducts(getFiltered());
+    updateFacetCounts();
+    renderChips();
+    renderGrid(filtered);
+    updateResults(filtered);
+  }
+
+  function resetVisible() { state.visible = PAGE_SIZE; }
+
+  function toggleFacet(group, value, checked) {
+    var set = state[group + 's'];
+    if (!set) return;
+    if (checked) set.add(value); else set.delete(value);
+  }
+
+  function clearAll() {
+    state.flavors.clear();
+    state.formats.clear();
+    state.attrs.clear();
+    state.inStock = false;
+    state.priceMin = 0;
+    state.priceMax = PRICE_MAX;
+    state.sort = 'featured';
+    resetVisible();
+    document.querySelectorAll('#colSidebar input[type="checkbox"]').forEach(function (cb) { cb.checked = false; });
+    rangeMin.value = 0;
+    rangeMax.value = PRICE_MAX;
+    priceLabel.textContent = '$0 – $' + PRICE_MAX;
+    sortSelect.value = 'featured';
+    renderAll();
+  }
+
+  function removeChip(group, value) {
+    if (group === 'price') {
+      state.priceMin = 0; state.priceMax = PRICE_MAX;
+      rangeMin.value = 0; rangeMax.value = PRICE_MAX;
+      priceLabel.textContent = '$0 – $' + PRICE_MAX;
+    } else if (group === 'stock') {
+      state.inStock = false;
+      inStockBox.checked = false;
+    } else {
+      state[group + 's'].delete(value);
+      var cb = document.querySelector('input[data-group="' + group + '"][data-value="' + value + '"]');
+      if (cb) cb.checked = false;
+    }
+    resetVisible();
+    renderAll();
+  }
+
+  function openDrawer() {
+    wrapEl.classList.add('col-demo--filters-open');
+    filtersBtn.setAttribute('aria-expanded', 'true');
+  }
+  function closeDrawer() {
+    wrapEl.classList.remove('col-demo--filters-open');
+    filtersBtn.setAttribute('aria-expanded', 'false');
+  }
+
+  // ── init facet lists ──────────────────────────────────────────────────
+  buildFacetList('facetFlavor', 'flavor', FLAVORS);
+  buildFacetList('facetFormat', 'format', FORMATS);
+  buildFacetList('facetAttr', 'attr', ATTRS);
+
+  // ── wire events ───────────────────────────────────────────────────────
+  sidebarEl.addEventListener('change', function (e) {
+    var t = e.target;
+    if (t.matches('input[type="checkbox"][data-group]')) {
+      toggleFacet(t.dataset.group, t.dataset.value, t.checked);
+      resetVisible();
+      renderAll();
+    } else if (t === inStockBox) {
+      state.inStock = t.checked;
+      resetVisible();
+      renderAll();
+    }
+  });
+
+  function onPriceInput(e) {
+    var mn = parseInt(rangeMin.value, 10);
+    var mx = parseInt(rangeMax.value, 10);
+    if (mn > mx) {
+      if (e.target === rangeMin) { rangeMax.value = mn; mx = mn; }
+      else { rangeMin.value = mx; mn = mx; }
+    }
+    state.priceMin = mn;
+    state.priceMax = mx;
+    priceLabel.textContent = '$' + mn + ' – $' + mx;
+    resetVisible();
+    renderAll();
+  }
+  rangeMin.addEventListener('input', onPriceInput);
+  rangeMax.addEventListener('input', onPriceInput);
+
+  sortSelect.addEventListener('change', function () {
+    state.sort = sortSelect.value;
+    resetVisible();
+    renderAll();
+  });
+
+  loadMoreBtn.addEventListener('click', function () {
+    state.visible += LOAD_STEP;
+    renderAll();
+  });
+
+  document.getElementById('colClearAll').addEventListener('click', clearAll);
+  document.getElementById('colEmptyClear').addEventListener('click', clearAll);
+
+  chipsEl.addEventListener('click', function (e) {
+    var x = e.target.closest('.col-demo__chip-x');
+    if (x) { removeChip(x.dataset.group, x.dataset.value); return; }
+    if (e.target.id === 'colChipClearAll') clearAll();
+  });
+
+  filtersBtn.addEventListener('click', openDrawer);
+  sidebarClose.addEventListener('click', closeDrawer);
+  backdrop.addEventListener('click', closeDrawer);
+
+  priceLabel.textContent = '$0 – $' + PRICE_MAX;
+  renderAll();
+})();
+</script>
+
+<script>PF.foot();</script>
+</body>
+</html>

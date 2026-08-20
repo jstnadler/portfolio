@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Conversions by Source · Justin Adler · Portfolio</title>
+<link rel="stylesheet" href="assets/portfolio.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="assets/portfolio.js"></script>
+</head>
+<body>
+
+<main>
+  <div id="crumbs-mount"></div>
+  <h1>Conversions by Source</h1>
+  <p class="sub">Sessions, conversion rate and revenue by acquisition source, with first-party order-level
+    data reconciled against platform-reported numbers. Toggle attribution below to see how credit for the
+    same orders shifts between channels.</p>
+
+  <div class="controls">
+    <div class="seg" data-seg="window">
+      <button data-v="7d" aria-pressed="false">7d</button>
+      <button data-v="30d" aria-pressed="true">30d</button>
+      <button data-v="90d" aria-pressed="false">90d</button>
+      <button data-v="12mo" aria-pressed="false">12mo</button>
+    </div>
+    <div class="seg" data-seg="attribution">
+      <button data-v="first" aria-pressed="false">First-click</button>
+      <button data-v="last" aria-pressed="true">Last-click</button>
+      <button data-v="platform" aria-pressed="false">Platform-reported</button>
+    </div>
+  </div>
+
+  <div class="grid g3" id="kpi-grid"></div>
+
+  <h2>Conversion rate by source</h2>
+  <div class="card">
+    <div class="chart-wrap"><canvas id="chart-cvr"></canvas></div>
+    <p class="note">Sessions are recorded once per visit and do not change with the attribution toggle
+      above; only which source gets credit for the resulting order does. Watch Direct and Organic Social
+      move the most when you switch from Last-click to First-click.</p>
+  </div>
+
+  <h2>Orders by source over time</h2>
+  <div class="card">
+    <div class="chart-wrap tall"><canvas id="chart-orders-time"></canvas></div>
+    <div class="legend" id="orders-time-legend"></div>
+  </div>
+
+  <h2>Platform-reported vs. first-party orders</h2>
+  <div class="card">
+    <div class="chart-wrap short"><canvas id="chart-platform-gap"></canvas></div>
+  </div>
+  <div class="card" style="margin-top:12px;">
+    <p style="margin:0; font-size:13.5px; line-height:1.55;">Ad platforms count a conversion any time
+      their own pixel or click model believes it influenced a sale, including view-through credit and
+      cross-device modeling we can't independently verify. Our first-party numbers only count an order
+      once, attributed to a single recorded session. The gap above is consistently one-sided -- platforms
+      over-claim, never under-claim -- which is exactly why budget and channel-mix decisions run off the
+      first-party numbers on this page, not the numbers in the ad accounts.</p>
+  </div>
+
+  <h2>Source detail</h2>
+  <div class="card">
+    <div class="tbl-scroll">
+      <table id="source-table">
+        <thead>
+          <tr>
+            <th class="sortable" data-sort="text">Source</th>
+            <th class="sortable num" data-sort="num">Sessions</th>
+            <th class="sortable num" data-sort="num">Orders</th>
+            <th class="sortable num" data-sort="num">CVR</th>
+            <th class="sortable num" data-sort="num">Revenue</th>
+            <th class="sortable num" data-sort="num">AOV</th>
+            <th class="sortable num" data-sort="num">New-cust %</th>
+            <th class="sortable num" data-sort="num">Revenue share</th>
+          </tr>
+        </thead>
+        <tbody id="source-table-body"></tbody>
+      </table>
+    </div>
+    <p class="note">All figures on this page are synthetic and constructed for demonstration. They do not
+      reflect actual Teeccino traffic, orders or revenue.</p>
+  </div>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  var SOURCES = ['Direct', 'Organic Search', 'Paid Search', 'Paid Social', 'Email', 'SMS', 'Affiliate', 'Referral', 'Organic Social'];
+  var PAID_SOURCE_IDX = [2, 3, 6]; // Paid Search, Paid Social, Affiliate
+
+  // 30-day baseline. Orders redistribute across last/first/platform; sessions and AOV stay fixed per source.
+  var BASE30 = {
+    sessions:   [18000, 26000, 14000, 22000, 9000, 4200, 3100, 2600, 7800],
+    ordersLast: [684,   676,   448,   374,   486,  256,  90,   62,   94],
+    ordersFirst:[410,   640,   350,   520,   300,  150,  190,  110,  500],
+    ordersPlat: [684,   676,   583,   561,   486,  256,  118,  62,   94],
+    aov:        [52,    48,    46,    44,    58,   50,   47,   49,   43],
+    newCustPct: [22,    38,    61,    72,    18,   15,   55,   44,   66]
+  };
+
+  var WINDOWS = {
+    '7d':   { scale: 7 / 30 },
+    '30d':  { scale: 1 },
+    '90d':  { scale: 3 },
+    '12mo': { scale: 12.17 }
+  };
+
+  function seedStr(s) {
+    var h = 2166136261;
+    for (var i = 0; i < s.length; i++) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+  function jitter(key, amp) {
+    var r = PF.rng(seedStr(key))();
+    return 1 + (r * 2 - 1) * amp;
+  }
+
+  function ordersBaseFor(attribution) {
+    if (attribution === 'first') return BASE30.ordersFirst;
+    if (attribution === 'platform') return BASE30.ordersPlat;
+    return BASE30.ordersLast;
+  }
+
+  function computeSources(win, attribution) {
+    var scale = WINDOWS[win].scale;
+    var ordersBase = ordersBaseFor(attribution);
+    var rows = [];
+    for (var i = 0; i < SOURCES.length; i++) {
+      var name = SOURCES[i];
+      var sessions = Math.round(BASE30.sessions[i] * scale * jitter(name + '|sess|' + win, 0.05));
+      var orders = Math.round(ordersBase[i] * scale * jitter(name + '|ord|' + attribution + '|' + win, 0.05));
+      var aov = BASE30.aov[i] * jitter(name + '|aov|' + win, 0.03);
+      var revenue = orders * aov;
+      var newCustPct = Math.max(4, Math.min(96, BASE30.newCustPct[i] * jitter(name + '|nc|' + win, 0.04)));
+      rows.push({
+        idx: i,
+        name: name,
+        sessions: sessions,
+        orders: orders,
+        cvr: sessions > 0 ? (orders / sessions) * 100 : 0,
+        aov: aov,
+        revenue: revenue,
+        newCustPct: newCustPct
+      });
+    }
+    return rows;
+  }
+
+  function totals(rows) {
+    var sessions = 0, orders = 0, revenue = 0, ncOrders = 0;
+    rows.forEach(function (r) {
+      sessions += r.sessions;
+      orders += r.orders;
+      revenue += r.revenue;
+      ncOrders += r.orders * (r.newCustPct / 100);
+    });
+    return {
+      sessions: sessions,
+      orders: orders,
+      revenue: revenue,
+      cvr: sessions > 0 ? (orders / sessions) * 100 : 0,
+      aov: orders > 0 ? revenue / orders : 0,
+      newCustShare: orders > 0 ? (ncOrders / orders) * 100 : 0
+    };
+  }
+
+  // ── Time buckets for the orders-over-time chart ──────────────────────────
+  function buildBuckets(win) {
+    var now = new Date();
+    var labels = [];
+    var count;
+    if (win === '7d') {
+      count = 7;
+      for (var i = count - 1; i >= 0; i--) {
+        var d = new Date(now); d.setDate(d.getDate() - i);
+        labels.push(d.toLocaleDateString('en-US', { weekday: 'short' }));
+      }
+    } else if (win === '30d') {
+      count = 6;
+      for (var j = count - 1; j >= 0; j--) {
+        var d2 = new Date(now); d2.setDate(d2.getDate() - j * 5);
+        labels.push(d2.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+      }
+    } else if (win === '90d') {
+      count = 12;
+      for (var k = count - 1; k >= 0; k--) {
+        var d3 = new Date(now); d3.setDate(d3.getDate() - k * 7);
+        labels.push(d3.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+      }
+    } else {
+      count = 12;
+      for (var m = count - 1; m >= 0; m--) {
+        var d4 = new Date(now.getFullYear(), now.getMonth() - m, 1);
+        labels.push(PF.MONTHS[d4.getMonth()]);
+      }
+    }
+    return { count: count, labels: labels };
+  }
+
+  function distribute(total, count, key) {
+    var rnd = PF.rng(seedStr(key));
+    var raw = [];
+    for (var i = 0; i < count; i++) raw.push(0.55 + rnd() * 0.9);
+    var sum = raw.reduce(function (a, b) { return a + b; }, 0);
+    var out = raw.map(function (v) { return Math.round((v / sum) * total); });
+    var diff = total - out.reduce(function (a, b) { return a + b; }, 0);
+    out[out.length - 1] += diff;
+    return out;
+  }
+
+  // ── Chart instances ───────────────────────────────────────────────────────
+  var charts = {};
+  function destroyChart(id) {
+    if (charts[id]) { charts[id].destroy(); charts[id] = null; }
+  }
+
+  function renderKPIs(rows, tot) {
+    var grid = document.getElementById('kpi-grid');
+    var tiles = [
+      ['Sessions', PF.numK(tot.sessions)],
+      ['Orders', PF.numK(tot.orders)],
+      ['Overall CVR', PF.pct(tot.cvr, 2)],
+      ['Revenue', PF.usdK(tot.revenue)],
+      ['AOV', PF.usd(tot.aov, 2)],
+      ['New-customer share', PF.pct(tot.newCustShare, 1)]
+    ];
+    grid.innerHTML = tiles.map(function (t) {
+      return '<div class="kpi"><div class="lbl">' + t[0] + '</div><div class="val">' + t[1] + '</div></div>';
+    }).join('');
+  }
+
+  function renderChart1(rows) {
+    var colors = PF.colors();
+    var sorted = rows.slice().sort(function (a, b) { return a.cvr - b.cvr; });
+    destroyChart('cvr');
+    var ctx = document.getElementById('chart-cvr').getContext('2d');
+    charts.cvr = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: sorted.map(function (r) { return r.name; }),
+        datasets: [{
+          label: 'Conversion rate',
+          data: sorted.map(function (r) { return r.cvr; }),
+          backgroundColor: colors.accent,
+          borderRadius: 4,
+          maxBarThickness: 22
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        plugins: { legend: { display: false }, tooltip: { callbacks: {
+          label: function (c) { return PF.pct(c.parsed.x, 2); }
+        } } },
+        scales: {
+          x: { beginAtZero: true, grid: { color: colors.line }, ticks: { color: colors.muted, callback: function (v) { return v + '%'; } } },
+          y: { grid: { display: false }, ticks: { color: colors.muted } }
+        }
+      }
+    });
+  }
+
+  function renderChart2(win, attribution, rows) {
+    var colors = PF.colors();
+    var series = PF.series().slice();
+    series.push('#c2410c');
+    var buckets = buildBuckets(win);
+    destroyChart('time');
+    var datasets = rows.map(function (r, i) {
+      return {
+        label: r.name,
+        data: distribute(r.orders, buckets.count, r.name + '|bucket|' + win + '|' + attribution),
+        backgroundColor: series[i % series.length],
+        stack: 'orders'
+      };
+    });
+    var ctx = document.getElementById('chart-orders-time').getContext('2d');
+    charts.time = new Chart(ctx, {
+      type: 'bar',
+      data: { labels: buckets.labels, datasets: datasets },
+      options: {
+        plugins: { legend: { display: false } },
+        scales: {
+          x: { stacked: true, grid: { display: false }, ticks: { color: colors.muted } },
+          y: { stacked: true, beginAtZero: true, grid: { color: colors.line }, ticks: { color: colors.muted, callback: function (v) { return PF.numK(v); } } }
+        }
+      }
+    });
+    var legend = document.getElementById('orders-time-legend');
+    legend.innerHTML = rows.map(function (r, i) {
+      return '<span><i style="background:' + series[i % series.length] + '"></i>' + r.name + '</span>';
+    }).join('');
+  }
+
+  function renderChart3(win) {
+    var colors = PF.colors();
+    var lastRows = computeSources(win, 'last');
+    var platRows = computeSources(win, 'platform');
+    var labels = PAID_SOURCE_IDX.map(function (i) { return SOURCES[i]; });
+    var firstParty = PAID_SOURCE_IDX.map(function (i) { return lastRows[i].orders; });
+    var platform = PAID_SOURCE_IDX.map(function (i) { return platRows[i].orders; });
+    destroyChart('gap');
+    var ctx = document.getElementById('chart-platform-gap').getContext('2d');
+    charts.gap = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          { label: 'Platform-reported', data: platform, backgroundColor: colors.warn, borderRadius: 4 },
+          { label: 'First-party (last-click)', data: firstParty, backgroundColor: colors.accent, borderRadius: 4 }
+        ]
+      },
+      options: {
+        plugins: { legend: { display: true, position: 'bottom' } },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: colors.muted } },
+          y: { beginAtZero: true, grid: { color: colors.line }, ticks: { color: colors.muted } }
+        }
+      }
+    });
+  }
+
+  function renderTable(rows) {
+    var tot = totals(rows);
+    var maxShare = Math.max.apply(null, rows.map(function (r) { return r.revenue / tot.revenue; }));
+    var sorted = rows.slice().sort(function (a, b) { return b.revenue - a.revenue; });
+    var body = document.getElementById('source-table-body');
+    body.innerHTML = sorted.map(function (r) {
+      var share = tot.revenue > 0 ? (r.revenue / tot.revenue) * 100 : 0;
+      var barPct = maxShare > 0 ? ((r.revenue / tot.revenue) / maxShare) * 100 : 0;
+      return '<tr>' +
+        '<td>' + r.name + '</td>' +
+        '<td class="num" data-v="' + r.sessions + '">' + PF.num(r.sessions) + '</td>' +
+        '<td class="num" data-v="' + r.orders + '">' + PF.num(r.orders) + '</td>' +
+        '<td class="num" data-v="' + r.cvr.toFixed(3) + '">' + PF.pct(r.cvr, 2) + '</td>' +
+        '<td class="num" data-v="' + Math.round(r.revenue) + '">' + PF.usd(r.revenue) + '</td>' +
+        '<td class="num" data-v="' + r.aov.toFixed(2) + '">' + PF.usd(r.aov, 2) + '</td>' +
+        '<td class="num" data-v="' + r.newCustPct.toFixed(1) + '">' + PF.pct(r.newCustPct, 1) + '</td>' +
+        '<td class="num" data-v="' + share.toFixed(2) + '"><div class="bar-mini" style="display:inline-block; width:54px; vertical-align:middle; margin-right:6px;"><i style="width:' + barPct.toFixed(1) + '%"></i></div>' + PF.pct(share, 1) + '</td>' +
+        '</tr>';
+    }).join('');
+    PF.initSort(document.getElementById('source-table'));
+  }
+
+  var state = { win: '30d', attribution: 'last' };
+
+  function renderAll() {
+    var rows = computeSources(state.win, state.attribution);
+    var tot = totals(rows);
+    renderKPIs(rows, tot);
+    renderChart1(rows);
+    renderChart2(state.win, state.attribution, rows);
+    renderChart3(state.win);
+    renderTable(rows);
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    PF.chrome('conversion-by-source.html');
+    document.getElementById('crumbs-mount').outerHTML = PF.crumbs('Conversions by Source');
+
+    PF.applyChartDefaults();
+
+    PF.initSeg(document, function (segName, value) {
+      if (segName === 'window') state.win = value;
+      if (segName === 'attribution') state.attribution = value;
+      renderAll();
+    });
+
+    renderAll();
+    PF.foot();
+
+    var themeBtn = document.querySelector('.pf-theme');
+    if (themeBtn) {
+      themeBtn.addEventListener('click', function () {
+        setTimeout(renderAll, 0);
+      });
+    }
+  });
+})();
+</script>
+</body>
+</html>

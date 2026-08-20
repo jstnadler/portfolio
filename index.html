@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Justin Adler — Portfolio</title>
+<meta name="description" content="Working samples of the analytics dashboards and storefront templates I designed and built for a $5-6M omnichannel CPG brand. Dashboards use synthetic data.">
+<link rel="stylesheet" href="assets/portfolio.css">
+<style>
+  .hero { padding: 30px 0 8px; }
+  .hero h1 { font-size: 34px; letter-spacing: -.03em; margin: 0 0 8px; }
+  .hero .lede { font-size: 15.5px; color: var(--muted); max-width: 66ch; margin: 0 0 6px; }
+  .hero .meta { font-size: 13px; color: var(--faint); margin-top: 14px; }
+  .hero .meta a { color: var(--accent); text-decoration: none; }
+  .hero .meta a:hover { text-decoration: underline; }
+
+  .sec-head { display: flex; align-items: baseline; gap: 10px; margin: 30px 0 4px; }
+  .sec-head h2 { margin: 0; font-size: 15px; }
+  .sec-head .rule { flex: 1; height: 1px; background: var(--line); }
+  .sec-note { color: var(--faint); font-size: 12.5px; margin: 0 0 12px; max-width: 72ch; }
+
+  a.tile {
+    display: block; text-decoration: none; color: inherit;
+    background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 15px 17px; box-shadow: var(--shadow);
+    transition: border-color .14s ease, transform .14s ease;
+  }
+  a.tile:hover { border-color: var(--accent); transform: translateY(-1px); }
+  a.tile .t { font-weight: 650; font-size: 14.5px; letter-spacing: -.01em; margin-bottom: 5px; }
+  a.tile .d { font-size: 12.8px; color: var(--muted); line-height: 1.5; }
+  a.tile .tags { margin-top: 10px; display: flex; gap: 5px; flex-wrap: wrap; }
+  a.tile .tags span {
+    font-size: 10.5px; text-transform: uppercase; letter-spacing: .045em;
+    background: var(--chip); color: var(--faint); padding: 2px 7px; border-radius: 999px;
+  }
+
+  .disclosure { margin-top: 34px; }
+  .disclosure p { font-size: 13px; color: var(--muted); margin: 0 0 9px; max-width: 76ch; }
+  .disclosure p:last-child { margin-bottom: 0; }
+  .disclosure strong { color: var(--fg); }
+</style>
+</head>
+<body>
+
+<main>
+  <div class="hero">
+    <h1>Justin Adler</h1>
+    <p class="lede">
+      E-commerce and growth operator. I run the digital channels for a $5&ndash;6M omnichannel CPG
+      brand &mdash; paid media, retention, site conversion, the promotional calendar, and the
+      measurement layer underneath all of it.
+    </p>
+    <p class="lede">
+      What follows are working samples of things I built rather than briefed out: the analytics
+      dashboards our executives run on, and storefront templates I developed in native Liquid.
+      Every page here is live &mdash; the filters filter, the models recompute, the tables sort.
+    </p>
+    <div class="meta">
+      Oak Park, CA &nbsp;&middot;&nbsp; <a href="mailto:JstnAdler@gmail.com">JstnAdler@gmail.com</a>
+      &nbsp;&middot;&nbsp; (203) 770-4801
+    </div>
+  </div>
+
+  <div class="sec-head"><h2>Marketing &amp; Paid Media</h2><div class="rule"></div></div>
+  <p class="sec-note">
+    Where the budget goes and what it returns. I own the media plan, the agency relationship and
+    the reporting all three are argued from.
+  </p>
+  <div class="grid g2">
+    <a class="tile" href="mtd-kpi.html">
+      <div class="t">Marketing KPIs</div>
+      <div class="d">The month-to-date executive view. Revenue, orders, AOV, conversion and channel
+        mix against pace and prior year &mdash; the dashboard the CEO and CFO actually open.</div>
+      <div class="tags"><span>Chart.js</span><span>Pacing</span><span>YoY</span></div>
+    </a>
+    <a class="tile" href="ad-performance-meta.html">
+      <div class="t">Ad Performance &mdash; Meta</div>
+      <div class="d">Spend, ROAS and cost-per-purchase by funnel stage, judged on blended
+        efficiency rather than campaign-reported ROAS.</div>
+      <div class="tags"><span>Paid social</span><span>Funnel</span><span>Efficiency</span></div>
+    </a>
+    <a class="tile" href="ad-spend-yoy.html">
+      <div class="t">Ad Spend &mdash; Year over Year</div>
+      <div class="d">Total paid investment across platforms, year over year, with efficiency held
+        alongside spend so growth is never read in isolation.</div>
+      <div class="tags"><span>Multi-platform</span><span>CAC</span><span>Budget</span></div>
+    </a>
+    <a class="tile" href="new-customer-cost.html">
+      <div class="t">New-Customer Cost &amp; Spend Plan</div>
+      <div class="d">A planning model, not a report. Moves budget and target CAC and shows what the
+        cohort returns and when it pays back.</div>
+      <div class="tags"><span>Model</span><span>CAC payback</span><span>Scenarios</span></div>
+    </a>
+  </div>
+
+  <div class="sec-head"><h2>Analytics &amp; Measurement</h2><div class="rule"></div></div>
+  <p class="sec-note">
+    I built the first-party warehouse these run on &mdash; daily ingestion from the storefront, GA4,
+    the ad platforms, email and the marketplace into a modeled order-level database. Platform
+    numbers are for speed; order-level data is for the decision.
+  </p>
+  <div class="grid g3">
+    <a class="tile" href="ltv-2year.html">
+      <div class="t">2-Year LTV</div>
+      <div class="d">Monthly acquisition cohorts tracked to 24 months &mdash; cumulative value,
+        retention curves and LTV:CAC by channel, on a full cohort heatmap.</div>
+      <div class="tags"><span>Cohorts</span><span>Heatmap</span><span>Retention</span></div>
+    </a>
+    <a class="tile" href="conversion-by-source.html">
+      <div class="t">Conversions by Source</div>
+      <div class="d">Sessions, conversion rate and revenue by source &mdash; and the gap between
+        what platforms claim and what first-party data shows.</div>
+      <div class="tags"><span>Attribution</span><span>Reconciliation</span></div>
+    </a>
+    <a class="tile" href="search-performance.html">
+      <div class="t">Search Performance</div>
+      <div class="d">Organic clicks, impressions, CTR and position from first-party Search Console
+        data, with branded and non-branded separated.</div>
+      <div class="tags"><span>SEO</span><span>GSC</span><span>Query mining</span></div>
+    </a>
+  </div>
+
+  <div class="sec-head"><h2>Production &amp; Cost</h2><div class="rule"></div></div>
+  <p class="sec-note">
+    Manufacturing analytics, so that pricing and promotional decisions rest on a real cost basis
+    rather than a standard-cost assumption. <strong>These two use a fictional brand and fictional
+    equipment</strong> &mdash; the structure of a real production line is not mine to publish.
+  </p>
+  <div class="grid g2">
+    <a class="tile" href="production-throughput.html">
+      <div class="t">Production Throughput</div>
+      <div class="d">Units produced per machine-hour, per operator-hour and per run, by packing
+        line and product type &mdash; which separates an equipment constraint from a staffing one.</div>
+      <div class="tags"><span>Fictional brand</span><span>Ops</span><span>Throughput</span></div>
+    </a>
+    <a class="tile" href="production-cost-variance.html">
+      <div class="t">Production Cost Variance</div>
+      <div class="d">Per-unit direct labor by stage, standard versus actual, with variance surfaced
+        at SKU level so the overruns are attributable.</div>
+      <div class="tags"><span>Fictional brand</span><span>COGS</span><span>Variance</span></div>
+    </a>
+  </div>
+
+  <div class="sec-head"><h2>Storefront Development</h2><div class="rule"></div></div>
+  <p class="sec-note">
+    I do the storefront development myself &mdash; theme code, sections, landing pages, page speed.
+    Both are static replicas of live pages, using real public catalog content and product
+    photography. The interactions are real; nothing transacts.
+  </p>
+  <div class="grid g2">
+    <a class="tile" href="product-page.html">
+      <div class="t">Product Detail Page</div>
+      <div class="d">Rebuilt from a third-party page builder into native Liquid sections &mdash;
+        removing the dependency and making one template serve the whole catalog, with a format
+        switcher across coffee, tea, instant and latte.</div>
+      <div class="tags"><span>Liquid</span><span>Subscriptions</span><span>CRO</span></div>
+    </a>
+    <a class="tile" href="collection-page.html">
+      <div class="t">Collection Page</div>
+      <div class="d">Theme-rendered collection template with faceted filtering, sort and a reusable
+        product-card snippet.</div>
+      <div class="tags"><span>Liquid</span><span>Faceted filter</span><span>Grid</span></div>
+    </a>
+  </div>
+
+  <div class="sec-head"><h2>About these samples</h2><div class="rule"></div></div>
+  <div class="card disclosure">
+    <p><strong>Every number on the nine dashboards is invented.</strong> They are functional
+      rebuilds of dashboards I designed and operate in production, reconstructed against synthetic
+      datasets. I rebuilt them rather than copying and redacting the originals, because redaction
+      is a process you can get almost right &mdash; regeneration is not.</p>
+    <p><strong>The two storefront pages are the exception, and deliberately so.</strong> They
+      replicate live public product and collection pages, so the product names, prices, attribute
+      badges and photography are real public catalog content rather than invented. Nothing
+      confidential sits on a public product page. They are static &mdash; no cart, no checkout,
+      nothing transacts.</p>
+    <p><strong>The production dashboards are additionally anonymized.</strong> Fake numbers are not
+      sufficient there: the shape of a manufacturing dashboard reveals line configuration and
+      staffing structure on its own. Those two carry a fictional brand and generic equipment names.</p>
+    <p>The marketing and analytics pages are shown under my employer's brand with their real
+      structure, because that structure is ordinary industry practice and gives honest provenance
+      for work I did there.</p>
+    <p>Happy to walk through the real versions, the warehouse schema underneath them, or the
+      decisions behind any of it.</p>
+  </div>
+</main>
+
+<script src="assets/portfolio.js"></script>
+<script>
+  PF.chrome('index.html');
+  PF.foot();
+</script>
+</body>
+</html>

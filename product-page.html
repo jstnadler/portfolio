@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Product Page — Justin Adler Portfolio</title>
+<link rel="stylesheet" href="assets/portfolio.css">
+<script src="assets/portfolio.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Assistant:wght@500;600;700;800&family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  /* ── PDP replica — scoped entirely under .pdp-demo so nothing here can
+     leak into the portfolio shell (nav, banner, footer, other pages).
+     Forced to a light "device frame" surface per spec, independent of the
+     shell's light/dark toggle, so it stays legible either way. ──────────── */
+  .pdp-demo {
+    --pdp-bg: #ffffff;
+    --pdp-card: #ffffff;
+    --pdp-card-alt: #f7f7f5;
+    --pdp-line: #e2e2de;
+    --pdp-ink: rgb(18,18,18);
+    --pdp-muted: #5a5a56;
+    --pdp-faint: #8b8b86;
+    --pdp-accent: #6b3a22;
+    --pdp-accent-ink: #ffffff;
+    --pdp-good: #1f7a3d;
+    --pdp-chip: #f0efe9;
+    --pdp-shadow: 0 2px 8px rgba(18,18,18,.06), 0 10px 28px rgba(18,18,18,.07);
+    --pdp-radius: 14px;
+    background: var(--pdp-bg);
+    color: var(--pdp-ink);
+    font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    border: 1px solid #d7d7d1;
+    border-radius: 18px;
+    padding: 28px;
+    margin-top: 18px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.05), 0 18px 40px rgba(0,0,0,.08);
+  }
+  .pdp-demo h1, .pdp-demo h2, .pdp-demo h3, .pdp-demo .pdp-title {
+    font-family: 'Assistant', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+
+  /* ── Hero layout ─────────────────────────────────────────────────────── */
+  .pdp-hero { display: grid; grid-template-columns: 1fr 1fr; gap: 36px; }
+  @media (max-width: 860px) { .pdp-hero { grid-template-columns: 1fr; } }
+
+  /* ── Gallery ─────────────────────────────────────────────────────────── */
+  .pdp-gallery { display: flex; flex-direction: column; gap: 10px; }
+  .pdp-gallery-main {
+    position: relative; aspect-ratio: 1 / 1; border-radius: var(--pdp-radius);
+    background: var(--pdp-card-alt); border: 1px solid var(--pdp-line);
+    overflow: hidden; box-shadow: var(--pdp-shadow);
+    display: flex; align-items: center; justify-content: center; cursor: zoom-in;
+  }
+  .pdp-gallery-main img {
+    width: 82%; height: 82%; object-fit: contain; transition: transform .25s ease; pointer-events: none;
+  }
+  .pdp-gallery-main.is-zoomed img { transform: scale(1.55); }
+  .pdp-gallery-main.is-zoomed { cursor: zoom-out; }
+
+  .pdp-fotm-ribbon {
+    position: absolute; top: 12px; left: 12px; background: var(--pdp-accent); color: var(--pdp-accent-ink);
+    font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+    padding: 6px 11px; border-radius: 999px; box-shadow: var(--pdp-shadow); z-index: 2;
+  }
+
+  .pdp-zoom-btn, .pdp-arrow {
+    position: absolute; border: 1px solid var(--pdp-line); background: var(--pdp-card);
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    box-shadow: var(--pdp-shadow); color: var(--pdp-ink); padding: 0; z-index: 2;
+  }
+  .pdp-zoom-btn { top: 10px; right: 10px; width: 34px; height: 34px; border-radius: 50%; }
+  .pdp-arrow { top: 50%; transform: translateY(-50%); width: 36px; height: 36px; border-radius: 50%; }
+  .pdp-arrow.prev { left: 10px; } .pdp-arrow.next { right: 10px; }
+  .pdp-zoom-btn svg, .pdp-arrow svg { width: 16px; height: 16px; stroke: var(--pdp-ink); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  .pdp-thumbs { display: flex; gap: 8px; }
+  .pdp-thumb {
+    flex: 1; aspect-ratio: 1 / 1; border-radius: 10px; border: 2px solid var(--pdp-line);
+    background: var(--pdp-card-alt); cursor: pointer; padding: 6px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .pdp-thumb[aria-pressed="true"] { border-color: var(--pdp-accent); }
+  .pdp-thumb img { width: 100%; height: 100%; object-fit: contain; }
+
+  /* ── Info column ─────────────────────────────────────────────────────── */
+  .pdp-info { display: flex; flex-direction: column; gap: 9px; }
+  .pdp-title { font-size: 27px; margin: 0; letter-spacing: -.01em; font-weight: 700; }
+  .pdp-typesize { margin: 0; font-size: 13px; color: var(--pdp-faint); }
+  .pdp-pill-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .pdp-pill-caffeine {
+    display: inline-block; background: var(--pdp-chip); color: var(--pdp-good);
+    border: 1px solid var(--pdp-line); padding: 3px 10px; border-radius: 999px; font-size: 11.5px; font-weight: 600;
+  }
+  .pdp-rating { font-size: 13px; margin: 0; }
+  .pdp-rating a { color: var(--pdp-muted); text-decoration: none; display: inline-flex; align-items: center; gap: 8px; }
+  .pdp-rating a:hover { color: var(--pdp-accent); }
+  .pdp-stars { position: relative; display: inline-block; height: 15px; width: 82px; }
+  .pdp-stars-row { position: absolute; top: 0; left: 0; display: flex; gap: 2px; white-space: nowrap; }
+  .pdp-stars-bg svg { fill: var(--pdp-line); }
+  .pdp-stars-fg { overflow: hidden; }
+  .pdp-stars-fg svg { fill: var(--pdp-accent); }
+
+  .pdp-seals { display: flex; gap: 14px; margin: 2px 0 4px; }
+  .pdp-seal { display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--pdp-muted); font-weight: 600; }
+  .pdp-seal svg { width: 22px; height: 22px; stroke: var(--pdp-accent); fill: none; stroke-width: 1.6; }
+
+  .pdp-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--pdp-accent); margin: 8px 0 4px; }
+  .pdp-format-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+  .pdp-format-tab {
+    border: 1px solid var(--pdp-line); background: var(--pdp-card); color: var(--pdp-ink);
+    padding: 8px 13px; border-radius: 10px; font-size: 12.5px; cursor: pointer; font-family: inherit; font-weight: 500;
+  }
+  .pdp-format-tab[aria-pressed="true"] { border-color: var(--pdp-accent); background: color-mix(in srgb, var(--pdp-accent) 10%, var(--pdp-card)); font-weight: 700; }
+
+  .pdp-price-block { display: flex; align-items: center; gap: 10px; margin: 6px 0 0; flex-wrap: wrap; }
+  .pdp-price { font-size: 26px; font-weight: 700; }
+  .pdp-compare { font-size: 15px; color: var(--pdp-faint); text-decoration: line-through; }
+  .pdp-save { background: color-mix(in srgb, var(--pdp-good) 14%, transparent); color: var(--pdp-good); padding: 2px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 700; }
+  .pdp-sub-badge { background: var(--pdp-chip); color: var(--pdp-ink); border: 1px solid var(--pdp-line); padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+
+  .pdp-desc { font-size: 13.5px; line-height: 1.65; color: var(--pdp-ink); margin: 8px 0 0; }
+  .pdp-nutrition-link { font-size: 12.5px; font-weight: 600; color: var(--pdp-accent); text-decoration: none; display: inline-block; margin-top: 4px; }
+  .pdp-nutrition-link:hover { text-decoration: underline; }
+
+  /* ── Buy box ──────────────────────────────────────────────────────────── */
+  .pdp-buybox {
+    border: 1px solid var(--pdp-line); border-radius: var(--pdp-radius); padding: 15px 16px;
+    background: var(--pdp-card-alt); box-shadow: var(--pdp-shadow); display: flex; flex-direction: column; gap: 12px; margin-top: 10px;
+  }
+  .pdp-field-label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: var(--pdp-faint); margin: 0 0 2px; }
+  .pdp-purchase-option { display: flex; align-items: flex-start; gap: 9px; padding: 9px 10px; border: 1px solid var(--pdp-line); border-radius: 10px; cursor: pointer; background: var(--pdp-card); }
+  .pdp-purchase-option:has(input:checked) { border-color: var(--pdp-accent); background: color-mix(in srgb, var(--pdp-accent) 7%, var(--pdp-card)); }
+  .pdp-purchase-option input { margin-top: 3px; accent-color: var(--pdp-accent); }
+  .pdp-po-title { font-size: 13.5px; font-weight: 600; display: block; }
+  .pdp-po-sub { font-size: 12px; color: var(--pdp-muted); margin-top: 1px; display: block; }
+
+  .pdp-qty-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .pdp-qty { display: inline-flex; align-items: center; border: 1px solid var(--pdp-line); border-radius: 10px; overflow: hidden; }
+  .pdp-qty button { width: 32px; height: 32px; border: 0; background: var(--pdp-chip); color: var(--pdp-ink); font-size: 16px; cursor: pointer; font-family: inherit; }
+  .pdp-qty input {
+    width: 42px; text-align: center; border: 0; border-left: 1px solid var(--pdp-line); border-right: 1px solid var(--pdp-line);
+    height: 32px; background: var(--pdp-card); color: var(--pdp-ink); font-family: inherit;
+  }
+  .pdp-addcart { background: var(--pdp-accent); color: var(--pdp-accent-ink); border: 0; padding: 12px 18px; border-radius: 10px; font-size: 14.5px; font-weight: 700; cursor: pointer; width: 100%; font-family: inherit; }
+  .pdp-addcart:disabled { opacity: .8; cursor: default; }
+  .pdp-confirm { font-size: 12.5px; color: var(--pdp-good); opacity: 0; max-height: 0; overflow: hidden; transition: opacity .2s ease; }
+  .pdp-confirm.is-visible { opacity: 1; max-height: 40px; }
+
+  /* ── Below-hero sections ─────────────────────────────────────────────── */
+  .pdp-section { margin-top: 34px; scroll-margin-top: 90px; }
+  .pdp-section h2 { font-size: 17px; margin: 0 0 12px; font-weight: 700; }
+  .pdp-section p { font-size: 13.5px; line-height: 1.65; color: var(--pdp-muted); margin: 0 0 10px; }
+
+  .pdp-allergen-note {
+    font-size: 13px; color: var(--pdp-ink); background: var(--pdp-card-alt); border: 1px solid var(--pdp-line);
+    border-radius: 10px; padding: 10px 13px; margin-top: 10px;
+  }
+  .pdp-ingredients-list { margin: 0; padding-left: 20px; font-size: 13.5px; color: var(--pdp-ink); line-height: 1.8; }
+
+  .pdp-benefits-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  @media (max-width: 700px) { .pdp-benefits-grid { grid-template-columns: repeat(2, 1fr); } }
+  .pdp-benefit-card {
+    border: 1px solid var(--pdp-line); border-radius: 12px; padding: 14px; background: var(--pdp-card);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .pdp-benefit-card svg { width: 24px; height: 24px; stroke: var(--pdp-accent); fill: none; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+  .pdp-benefit-card b { font-size: 13px; }
+  .pdp-benefit-card span { font-size: 12.5px; color: var(--pdp-muted); line-height: 1.5; }
+
+  .pdp-flavor-chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+  .pdp-flavor-chip { background: var(--pdp-chip); color: var(--pdp-ink); border-radius: 999px; padding: 6px 13px; font-size: 12.5px; font-weight: 600; }
+
+  .pdp-brew-note { font-size: 12px; color: var(--pdp-faint); margin: 0 0 8px; }
+  .pdp-brew-steps { margin: 0; padding-left: 20px; font-size: 13.5px; color: var(--pdp-ink); line-height: 1.85; }
+
+  .pdp-accordion { display: flex; flex-direction: column; gap: 8px; }
+  .pdp-acc-item { border: 1px solid var(--pdp-line); border-radius: 10px; background: var(--pdp-card); overflow: hidden; }
+  .pdp-acc-item summary { list-style: none; cursor: pointer; padding: 13px 16px; display: flex; align-items: center; justify-content: space-between; font-size: 13.5px; font-weight: 600; color: var(--pdp-ink); }
+  .pdp-acc-item summary::-webkit-details-marker { display: none; }
+  .pdp-acc-chevron { transition: transform .2s ease; stroke: var(--pdp-muted); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; width: 14px; height: 14px; flex-shrink: 0; }
+  .pdp-acc-item[open] .pdp-acc-chevron { transform: rotate(90deg); }
+  .pdp-acc-body { padding: 0 16px 16px; font-size: 13px; color: var(--pdp-muted); line-height: 1.65; }
+
+  .pdp-carousel { position: relative; border: 1px solid var(--pdp-line); border-radius: var(--pdp-radius); background: var(--pdp-card); padding: 22px; box-shadow: var(--pdp-shadow); }
+  .pdp-slide { display: none; gap: 14px; align-items: flex-start; }
+  .pdp-slide.is-active { display: flex; }
+  .pdp-avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--pdp-accent); color: var(--pdp-accent-ink); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 13px; flex-shrink: 0; }
+  .pdp-quote { font-size: 14px; font-style: italic; margin: 0 0 6px; color: var(--pdp-ink); }
+  .pdp-quote-name { font-size: 12px; color: var(--pdp-muted); margin: 0; }
+  .pdp-dots { display: flex; justify-content: center; gap: 8px; margin-top: 16px; }
+  .pdp-dot { width: 8px; height: 8px; border-radius: 50%; border: 0; background: var(--pdp-line); cursor: pointer; padding: 0; }
+  .pdp-dot[aria-current="true"] { background: var(--pdp-accent); }
+
+  .pdp-crosssell-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; }
+  @media (max-width: 900px) { .pdp-crosssell-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 560px) { .pdp-crosssell-grid { grid-template-columns: repeat(2, 1fr); } }
+  .pdp-crosssell-card { border: 1px solid var(--pdp-line); border-radius: 12px; background: var(--pdp-card); overflow: hidden; display: flex; flex-direction: column; }
+  .pdp-crosssell-img { aspect-ratio: 1 / 1; background: var(--pdp-card-alt); display: flex; align-items: center; justify-content: center; }
+  .pdp-crosssell-img img { width: 78%; height: 78%; object-fit: contain; }
+  .pdp-crosssell-name { font-size: 12.5px; font-weight: 600; padding: 10px 10px 4px; line-height: 1.35; }
+  .pdp-crosssell-tag { font-size: 11px; color: var(--pdp-faint); padding: 0 10px 12px; }
+</style>
+</head>
+<body>
+<script>PF.chrome('product-page.html');</script>
+
+<main>
+<script>document.write(PF.crumbs('Product Page'));</script>
+<h1>Product Page</h1>
+<p class="sub">A Shopify product detail page, rebuilt from a page-builder app into native Liquid.</p>
+
+<div class="card">
+  <h3>Case note</h3>
+  <p style="margin:0;font-size:13.5px;line-height:1.6;">
+    This replicates the live French Roast Chicory Herbal Coffee product page on teeccino.com, which I rebuilt
+    from a Replo page-builder implementation into native Shopify Liquid sections — the gallery, format switcher,
+    buy box, accordion and reviews carousel all became reusable template sections instead of a one-off
+    page-builder layout. What follows is a static replica for portfolio purposes only: it reproduces a subset of
+    the real page's structure and copy, not the full page, and I'm not claiming any measured page-weight or speed
+    improvement here since no such measurement was taken for this replica. Product photography is real Teeccino
+    packaging photography mapped by SKU; pricing, review counts and some section copy are placeholder or
+    synthetic, consistent with this whole site's "sample data" convention noted in the banner above. This asset
+    set only includes French Roast photography for the Instant and Instant Latte formats, so the Herbal Coffee
+    and Herbal Tea tabs below reuse the Instant-format photo as a stand-in.
+  </p>
+</div>
+
+<div class="pdp-demo">
+  <div class="pdp-hero">
+
+    <!-- ── Gallery ─────────────────────────────────────────────────────── -->
+    <div class="pdp-gallery" id="pdpGallery">
+      <div class="pdp-gallery-main" id="pdpGalleryMain">
+        <span class="pdp-fotm-ribbon">Flavor of the Month</span>
+        <img id="pdpMainImg" src="assets/img/30008L-FR-Instant-Hero-1.webp" alt="French Roast Chicory Herbal Coffee pouch">
+        <button class="pdp-zoom-btn" id="pdpZoomBtn" type="button" aria-pressed="false" aria-label="Zoom product image" title="Click to zoom">
+          <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
+        </button>
+        <button class="pdp-arrow prev" id="pdpPrev" type="button" aria-label="Previous format">
+          <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+        <button class="pdp-arrow next" id="pdpNext" type="button" aria-label="Next format">
+          <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </button>
+      </div>
+      <div class="pdp-thumbs" id="pdpThumbs">
+        <button class="pdp-thumb" type="button" data-format="coffee" aria-pressed="true" aria-label="Show Herbal Coffee"><img src="assets/img/30008L-FR-Instant-Hero-1.webp" alt="Herbal Coffee format thumbnail"></button>
+        <button class="pdp-thumb" type="button" data-format="tea" aria-pressed="false" aria-label="Show Herbal Tea"><img src="assets/img/30008L-FR-Instant-Hero-1.webp" alt="Herbal Tea format thumbnail"></button>
+        <button class="pdp-thumb" type="button" data-format="instant" aria-pressed="false" aria-label="Show Instant Coffee"><img src="assets/img/30008L-FR-Instant-Hero-1.webp" alt="Instant Coffee format thumbnail"></button>
+        <button class="pdp-thumb" type="button" data-format="latte" aria-pressed="false" aria-label="Show Instant Latte"><img src="assets/img/31008L-FR-Latte-Hero-1-l.webp" alt="Instant Latte format thumbnail"></button>
+      </div>
+    </div>
+
+    <!-- ── Info column ─────────────────────────────────────────────────── -->
+    <div class="pdp-info">
+      <h1 class="pdp-title">French Roast Chicory Herbal Coffee</h1>
+
+      <p class="pdp-rating">
+        <a href="#pdp-reviews">
+          <span class="pdp-stars" aria-hidden="true">
+            <span class="pdp-stars-row pdp-stars-bg" id="pdpStarsBg"></span>
+            <span class="pdp-stars-row pdp-stars-fg" id="pdpStarsFg" style="width:96%"></span>
+          </span>
+          <span>4.8 (212 reviews)</span>
+        </a>
+      </p>
+
+      <div class="pdp-pill-row">
+        <p class="pdp-typesize" id="pdpTypeSize" style="margin:0">Herbal Coffee | 11 ounce ground</p>
+      </div>
+      <div class="pdp-pill-row">
+        <span class="pdp-pill-caffeine">Caffeine Free</span>
+      </div>
+
+      <div class="pdp-seals">
+        <span class="pdp-seal">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M8 12.5l2.5 2.5L16 9"></path></svg>
+          USDA Organic
+        </span>
+        <span class="pdp-seal">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v10M8 9l4-2 4 2M8 15l4 2 4-2"></path></svg>
+          Kosher
+        </span>
+      </div>
+
+      <p class="pdp-eyebrow">New Instant Blends!</p>
+      <div class="pdp-format-tabs" id="pdpFormatTabs">
+        <button class="pdp-format-tab" type="button" data-format="coffee" aria-pressed="true">Herbal Coffee</button>
+        <button class="pdp-format-tab" type="button" data-format="tea" aria-pressed="false">Herbal Tea</button>
+        <button class="pdp-format-tab" type="button" data-format="instant" aria-pressed="false">Instant Coffee</button>
+        <button class="pdp-format-tab" type="button" data-format="latte" aria-pressed="false">Instant Latte</button>
+      </div>
+
+      <div class="pdp-price-block">
+        <span class="pdp-price" id="pdpPrice">$13.60</span>
+        <span class="pdp-compare" id="pdpCompare">$18.49</span>
+        <span class="pdp-save" id="pdpSave">Save 26%</span>
+        <span class="pdp-sub-badge" id="pdpSubBadge">Subscription Price</span>
+      </div>
+
+      <p class="pdp-desc">
+        Intense deep coffee notes from roasted ramon seeds and chicory roots create a robust, focused body
+        without any sweetness. Dark Roast - Organic
+      </p>
+      <a class="pdp-nutrition-link" href="#pdp-nutrition">Nutrition Facts &amp; Ingredients &rarr;</a>
+
+      <div class="pdp-buybox">
+        <span class="pdp-field-label">Purchase Option</span>
+        <label class="pdp-purchase-option">
+          <input type="radio" name="pdpPurchase" value="subscribe" checked>
+          <span>
+            <span class="pdp-po-title">Subscribe &amp; Save</span>
+            <span class="pdp-po-sub">Best price, delivered on your schedule. Change or cancel anytime.</span>
+          </span>
+        </label>
+        <label class="pdp-purchase-option">
+          <input type="radio" name="pdpPurchase" value="onetime">
+          <span>
+            <span class="pdp-po-title">One-time purchase</span>
+            <span class="pdp-po-sub">Pay once, ships right away</span>
+          </span>
+        </label>
+
+        <div class="pdp-qty-row">
+          <span>
+            <span class="pdp-field-label">Quantity</span>
+            <div class="pdp-qty">
+              <button type="button" id="pdpQtyMinus" aria-label="Decrease quantity">&#8722;</button>
+              <input type="text" inputmode="numeric" id="pdpQty" value="1" aria-label="Quantity">
+              <button type="button" id="pdpQtyPlus" aria-label="Increase quantity">+</button>
+            </div>
+          </span>
+        </div>
+
+        <button class="pdp-addcart" id="pdpAddCart" type="button">Add to Cart</button>
+        <div class="pdp-confirm" id="pdpCartConfirm" role="status"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Nutrition Facts & Ingredients (teaser) ───────────────────────────── -->
+  <section class="pdp-section" id="pdp-nutrition">
+    <h2>Nutrition Facts &amp; Ingredients</h2>
+    <p>
+      Full nutrition facts are printed on every pack and published on the product's real page at teeccino.com.
+      This replica does not reproduce a nutrition-facts panel, since no verified figures were provided for it —
+      the ingredient list and allergen statement for the selected format are below.
+    </p>
+  </section>
+
+  <!-- ── Ingredients ───────────────────────────────────────────────────────── -->
+  <section class="pdp-section" id="pdp-ingredients">
+    <h2>Ingredients</h2>
+    <ul class="pdp-ingredients-list" id="pdpIngredientsList"></ul>
+    <div class="pdp-allergen-note">
+      <strong>Contains tree nuts (almonds) and barley. Not gluten-free.</strong>
+    </div>
+  </section>
+
+  <!-- ── Discover the Benefits ─────────────────────────────────────────────── -->
+  <section class="pdp-section" id="pdp-benefits">
+    <h2>Discover the Benefits</h2>
+    <div class="pdp-benefits-grid">
+      <div class="pdp-benefit-card">
+        <svg viewBox="0 0 24 24"><path d="M12 2c1 4-3 5-3 9a3 3 0 0 0 6 0c0-2-1-3-1-5 2 2 3 5 3 7a5 5 0 0 1-10 0c0-5 3-7 5-11z"></path></svg>
+        <b>Deep Roast Character</b>
+        <span>Roasted ramon seeds and chicory root give French Roast its bold, dark-roast cup with a robust, focused body and no sweetness.</span>
+      </div>
+      <div class="pdp-benefit-card">
+        <svg viewBox="0 0 24 24"><path d="M4 4h13v8a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V4z"></path><path d="M17 7h2a2 2 0 0 1 0 4h-2"></path><path d="M4 19h13"></path></svg>
+        <b>Brews Like Coffee</b>
+        <span>Use a drip machine, French press, pour-over or cold brew, exactly the way you'd brew ground coffee.</span>
+      </div>
+      <div class="pdp-benefit-card">
+        <svg viewBox="0 0 24 24"><path d="M12 3c-4 1-7 4-8 8 4 1 8-2 9-6 .3-1 .2-2-1-2z"></path><path d="M4 11c3 5 8 7 12 5"></path></svg>
+        <b>Caffeine Free, Any Time</b>
+        <span>No caffeine in any format, so a rich dark-roast cup fits any hour of the day.</span>
+      </div>
+      <div class="pdp-benefit-card">
+        <svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="5" ry="8" transform="rotate(20 12 12)"></ellipse><line x1="9" y1="7" x2="15" y2="17"></line></svg>
+        <b>Real Roasted Ingredients</b>
+        <span>Made from roasted chicory root, carob, barley, dates and almonds — no coffee beans required.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Bold Flavors ──────────────────────────────────────────────────────── -->
+  <section class="pdp-section" id="pdp-flavors">
+    <h2>Bold Flavors</h2>
+    <p>French Roast leans into deep, smoky roast notes for drinkers who want a strong, dark cup with a focused, robust body and no added sweetness.</p>
+    <div class="pdp-flavor-chips">
+      <span class="pdp-flavor-chip">Dark Roast</span>
+      <span class="pdp-flavor-chip">Robust Body</span>
+      <span class="pdp-flavor-chip">No Sweetness</span>
+      <span class="pdp-flavor-chip">Smoky Finish</span>
+    </div>
+  </section>
+
+  <!-- ── How to Brew ───────────────────────────────────────────────────────── -->
+  <section class="pdp-section" id="pdp-brew">
+    <h2>How to Brew</h2>
+    <p class="pdp-brew-note" id="pdpBrewNote">Steps shown for: Herbal Coffee</p>
+    <ol class="pdp-brew-steps" id="pdpBrewSteps"></ol>
+  </section>
+
+  <!-- ── FAQ ────────────────────────────────────────────────────────────────── -->
+  <section class="pdp-section" id="pdp-faq">
+    <h2>FAQ</h2>
+    <div class="pdp-accordion">
+      <details class="pdp-acc-item" open>
+        <summary>Is Teeccino real coffee?
+          <svg class="pdp-acc-chevron" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </summary>
+        <div class="pdp-acc-body">
+          No. Teeccino is a caffeine-free herbal coffee alternative made from roasted chicory, carob, barley,
+          dates and nuts, brewed the same way you'd brew ground coffee.
+        </div>
+      </details>
+      <details class="pdp-acc-item">
+        <summary>Does French Roast contain caffeine?
+          <svg class="pdp-acc-chevron" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </summary>
+        <div class="pdp-acc-body">No, French Roast is 100% caffeine-free in every format.</div>
+      </details>
+      <details class="pdp-acc-item">
+        <summary>Is French Roast gluten-free?
+          <svg class="pdp-acc-chevron" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </summary>
+        <div class="pdp-acc-body">
+          No. This blend contains barley and is not gluten-free. It also contains tree nuts (almonds).
+        </div>
+      </details>
+      <details class="pdp-acc-item">
+        <summary>How should I store it?
+          <svg class="pdp-acc-chevron" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </summary>
+        <div class="pdp-acc-body">Keep the pouch sealed and store it in a cool, dry place after opening.</div>
+      </details>
+      <details class="pdp-acc-item">
+        <summary>Can I make it iced?
+          <svg class="pdp-acc-chevron" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
+        </summary>
+        <div class="pdp-acc-body">Yes — brew it double-strength, then pour over ice.</div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ── Customer Reviews ──────────────────────────────────────────────────── -->
+  <section class="pdp-section" id="pdp-reviews">
+    <h2>Customer Reviews</h2>
+    <div class="pdp-carousel">
+      <div class="pdp-slide is-active">
+        <div class="pdp-avatar">MK</div>
+        <div>
+          <p class="pdp-quote">"Tastes like my favorite diner coffee, and being caffeine-free means I can enjoy a cup any time of day."</p>
+          <p class="pdp-quote-name">Maria K., verified buyer</p>
+        </div>
+      </div>
+      <div class="pdp-slide">
+        <div class="pdp-avatar">DR</div>
+        <div>
+          <p class="pdp-quote">"The aroma alone makes my morning ritual feel complete. Rich, roasty and full of flavor in every cup."</p>
+          <p class="pdp-quote-name">Dan R., verified buyer</p>
+        </div>
+      </div>
+      <div class="pdp-slide">
+        <div class="pdp-avatar">AL</div>
+        <div>
+          <p class="pdp-quote">"Switched my whole family to French Roast. Even my coffee-snob husband approves of the roasted flavor."</p>
+          <p class="pdp-quote-name">Ana L., verified buyer</p>
+        </div>
+      </div>
+      <div class="pdp-dots" id="pdpDots">
+        <button class="pdp-dot" type="button" data-idx="0" aria-current="true" aria-label="Review 1"></button>
+        <button class="pdp-dot" type="button" data-idx="1" aria-current="false" aria-label="Review 2"></button>
+        <button class="pdp-dot" type="button" data-idx="2" aria-current="false" aria-label="Review 3"></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Discover more flavors ─────────────────────────────────────────────── -->
+  <section class="pdp-section" id="pdp-more-flavors">
+    <h2>Discover more flavors</h2>
+    <div class="pdp-crosssell-grid">
+      <div class="pdp-crosssell-card">
+        <div class="pdp-crosssell-img"><img src="assets/img/31009L-VN-Latte-Hero-1_4.webp" alt="Vanilla Nut Chicory Herbal Coffee pouch"></div>
+        <div class="pdp-crosssell-name">Vanilla Nut Chicory Herbal Coffee</div>
+        <div class="pdp-crosssell-tag">Portfolio replica — not a live link</div>
+      </div>
+      <div class="pdp-crosssell-card">
+        <div class="pdp-crosssell-img"><img src="assets/img/31005L-DB-Latte-Hero-1.w.webp" alt="Dandelion Dark Roast Herbal Coffee pouch"></div>
+        <div class="pdp-crosssell-name">Dandelion Dark Roast Herbal Coffee</div>
+        <div class="pdp-crosssell-tag">Portfolio replica — not a live link</div>
+      </div>
+      <div class="pdp-crosssell-card">
+        <div class="pdp-crosssell-img"><img src="assets/img/31010L-HZ-Latte-Hero-1.w.webp" alt="Hazelnut Chicory Herbal Coffee pouch"></div>
+        <div class="pdp-crosssell-name">Hazelnut Chicory Herbal Coffee</div>
+        <div class="pdp-crosssell-tag">Portfolio replica — not a live link</div>
+      </div>
+      <div class="pdp-crosssell-card">
+        <div class="pdp-crosssell-img"><img src="assets/img/31014L-MA-Latte-Hero-1_7.webp" alt="Maya Chai Herbal Coffee pouch"></div>
+        <div class="pdp-crosssell-name">Maya Chai Herbal Coffee</div>
+        <div class="pdp-crosssell-tag">Portfolio replica — not a live link</div>
+      </div>
+      <div class="pdp-crosssell-card">
+        <div class="pdp-crosssell-img"><img src="assets/img/31011L-MO-Latte-Hero-1.w.webp" alt="Mocha Chicory Herbal Coffee pouch"></div>
+        <div class="pdp-crosssell-name">Mocha Chicory Herbal Coffee</div>
+        <div class="pdp-crosssell-tag">Portfolio replica — not a live link</div>
+      </div>
+    </div>
+  </section>
+</div>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  var FR_INSTANT = 'assets/img/30008L-FR-Instant-Hero-1.webp';
+  var FR_LATTE = 'assets/img/31008L-FR-Latte-Hero-1-l.webp';
+
+  var BASE_INGREDIENTS = ['Roasted chicory root', 'Roasted carob', 'Roasted barley', 'Roasted dates', 'Roasted almonds', 'Natural flavor'];
+  var LATTE_EXTRA = ['Coconut milk powder', 'Oat milk powder', 'MCT oil'];
+
+  var FORMATS = {
+    coffee: {
+      label: 'Herbal Coffee', typesize: 'Herbal Coffee | 11 ounce ground',
+      img: FR_INSTANT, alt: 'French Roast Chicory Herbal Coffee pouch (Instant-format photo used as a stand-in — see case note)',
+      compare: 18.49, sub: 13.60, onetime: 15.99,
+      ingredients: BASE_INGREDIENTS,
+      brew: ['Use 1 heaping tablespoon per cup in a drip machine, French press or pour-over, just like ground coffee.', 'Brew hot, or brew double-strength and pour over ice.']
+    },
+    tea: {
+      label: 'Herbal Tea', typesize: 'Herbal Tea | 25 tea bags',
+      img: FR_INSTANT, alt: 'French Roast Chicory Herbal Coffee pouch (Instant-format photo used as a stand-in — see case note)',
+      compare: 14.99, sub: 11.99, onetime: 13.49,
+      ingredients: BASE_INGREDIENTS,
+      brew: ['Steep one tea bag in freshly boiled water for 4-6 minutes.', 'Remove the bag and enjoy hot, or chill and serve over ice.']
+    },
+    instant: {
+      label: 'Instant Coffee', typesize: 'Instant Coffee | 3.53 ounce',
+      img: FR_INSTANT, alt: 'French Roast Chicory Herbal Coffee, Instant format, 3.53 oz pouch',
+      compare: 9.99, sub: 7.49, onetime: 8.99,
+      ingredients: BASE_INGREDIENTS,
+      brew: ['Stir 1-2 teaspoons into 8 oz of hot water.', 'No brewing equipment needed — ready in seconds.']
+    },
+    latte: {
+      label: 'Instant Latte', typesize: 'Instant Latte | 7.9 ounce',
+      img: FR_LATTE, alt: 'French Roast Chicory Herbal Latte, Instant Latte format, 7.9 oz pouch',
+      compare: 16.99, sub: 12.99, onetime: 14.99,
+      ingredients: BASE_INGREDIENTS.concat(LATTE_EXTRA),
+      brew: ['Stir into 8 oz of hot water, or steamed milk of choice, for a café-style latte.', 'Adjust powder to taste for a stronger or lighter cup.']
+    }
+  };
+  var FORMAT_ORDER = ['coffee', 'tea', 'instant', 'latte'];
+
+  var state = { format: 'coffee', purchase: 'subscribe' };
+  var addCartTimer = null;
+  var testiTimer = null;
+  var testiIdx = 0;
+
+  function money(n) { return '$' + n.toFixed(2); }
+
+  function renderGallery() {
+    var f = FORMATS[state.format];
+    var mainImg = document.getElementById('pdpMainImg');
+    mainImg.src = f.img;
+    mainImg.alt = f.alt;
+    document.querySelectorAll('.pdp-thumb').forEach(function (btn) {
+      var fmt = btn.getAttribute('data-format');
+      btn.setAttribute('aria-pressed', fmt === state.format ? 'true' : 'false');
+    });
+  }
+
+  function shiftFormat(delta) {
+    var idx = FORMAT_ORDER.indexOf(state.format);
+    idx = (idx + delta + FORMAT_ORDER.length) % FORMAT_ORDER.length;
+    selectFormat(FORMAT_ORDER[idx]);
+  }
+
+  function toggleZoom() {
+    var main = document.getElementById('pdpGalleryMain');
+    var zoomed = main.classList.toggle('is-zoomed');
+    document.getElementById('pdpZoomBtn').setAttribute('aria-pressed', zoomed ? 'true' : 'false');
+  }
+
+  function updatePriceDisplay() {
+    var f = FORMATS[state.format];
+    var priceEl = document.getElementById('pdpPrice');
+    var compareEl = document.getElementById('pdpCompare');
+    var saveEl = document.getElementById('pdpSave');
+    var subBadge = document.getElementById('pdpSubBadge');
+
+    var price = state.purchase === 'subscribe' ? f.sub : f.onetime;
+    priceEl.textContent = money(price);
+    compareEl.textContent = money(f.compare);
+    var pct = Math.round((1 - price / f.compare) * 100);
+    saveEl.textContent = 'Save ' + pct + '%';
+    subBadge.style.display = state.purchase === 'subscribe' ? '' : 'none';
+  }
+
+  function renderIngredients() {
+    var f = FORMATS[state.format];
+    var list = document.getElementById('pdpIngredientsList');
+    list.innerHTML = f.ingredients.map(function (i) { return '<li>' + i + '</li>'; }).join('');
+  }
+
+  function renderBrewSteps() {
+    var f = FORMATS[state.format];
+    document.getElementById('pdpBrewNote').textContent = 'Steps shown for: ' + f.label;
+    document.getElementById('pdpBrewSteps').innerHTML = f.brew.map(function (s) { return '<li>' + s + '</li>'; }).join('');
+  }
+
+  function selectFormat(key) {
+    state.format = key;
+    var f = FORMATS[key];
+    document.getElementById('pdpTypeSize').textContent = f.typesize;
+    document.querySelectorAll('.pdp-format-tab').forEach(function (b) {
+      b.setAttribute('aria-pressed', b.getAttribute('data-format') === key ? 'true' : 'false');
+    });
+    renderGallery();
+    updatePriceDisplay();
+    renderIngredients();
+    renderBrewSteps();
+  }
+
+  function changeQty(delta) {
+    var input = document.getElementById('pdpQty');
+    var val = parseInt(input.value, 10);
+    if (isNaN(val)) val = 1;
+    val = Math.min(12, Math.max(1, val + delta));
+    input.value = val;
+  }
+
+  function addToCart() {
+    var f = FORMATS[state.format];
+    var qty = parseInt(document.getElementById('pdpQty').value, 10) || 1;
+    var purchaseLabel = state.purchase === 'subscribe' ? 'Subscribe & Save' : 'One-time purchase';
+    var btn = document.getElementById('pdpAddCart');
+    var confirmEl = document.getElementById('pdpCartConfirm');
+    btn.disabled = true;
+    btn.textContent = 'Added to Cart';
+    confirmEl.textContent = qty + ' x French Roast ' + f.label + ' (' + purchaseLabel + ') added to your cart.';
+    confirmEl.classList.add('is-visible');
+    clearTimeout(addCartTimer);
+    addCartTimer = setTimeout(function () {
+      btn.disabled = false;
+      btn.textContent = 'Add to Cart';
+      confirmEl.classList.remove('is-visible');
+    }, 3200);
+  }
+
+  function showSlide(i) {
+    var slides = document.querySelectorAll('.pdp-slide');
+    testiIdx = ((i % slides.length) + slides.length) % slides.length;
+    slides.forEach(function (s, idx) { s.classList.toggle('is-active', idx === testiIdx); });
+    document.querySelectorAll('.pdp-dot').forEach(function (d, idx) {
+      d.setAttribute('aria-current', idx === testiIdx ? 'true' : 'false');
+    });
+  }
+  function startAutoAdvance() {
+    clearInterval(testiTimer);
+    testiTimer = setInterval(function () { showSlide(testiIdx + 1); }, 5000);
+  }
+
+  // ── Wire up controls ──────────────────────────────────────────────────
+  document.querySelectorAll('.pdp-format-tab').forEach(function (btn) {
+    btn.addEventListener('click', function () { selectFormat(btn.getAttribute('data-format')); });
+  });
+  document.querySelectorAll('.pdp-thumb').forEach(function (btn) {
+    btn.addEventListener('click', function () { selectFormat(btn.getAttribute('data-format')); });
+  });
+  document.getElementById('pdpPrev').addEventListener('click', function () { shiftFormat(-1); });
+  document.getElementById('pdpNext').addEventListener('click', function () { shiftFormat(1); });
+  document.getElementById('pdpZoomBtn').addEventListener('click', toggleZoom);
+  document.querySelectorAll('input[name="pdpPurchase"]').forEach(function (r) {
+    r.addEventListener('change', function () {
+      state.purchase = r.value;
+      updatePriceDisplay();
+    });
+  });
+  document.getElementById('pdpQtyMinus').addEventListener('click', function () { changeQty(-1); });
+  document.getElementById('pdpQtyPlus').addEventListener('click', function () { changeQty(1); });
+  document.getElementById('pdpQty').addEventListener('change', function () { changeQty(0); });
+  document.getElementById('pdpAddCart').addEventListener('click', addToCart);
+  document.querySelectorAll('.pdp-dot').forEach(function (dot) {
+    dot.addEventListener('click', function () {
+      showSlide(parseInt(dot.getAttribute('data-idx'), 10));
+      startAutoAdvance();
+    });
+  });
+
+  // ── Star rating (static 4.8 / 5, rendered as SVG, not text glyphs) ────
+  (function renderStars() {
+    var star = '<svg viewBox="0 0 24 24" width="15" height="15"><polygon points="12 2 15 9 22 9.5 16.5 14.5 18 22 12 18 6 22 7.5 14.5 2 9.5 9 9"></polygon></svg>';
+    var row = star + star + star + star + star;
+    document.getElementById('pdpStarsBg').innerHTML = row;
+    document.getElementById('pdpStarsFg').innerHTML = row;
+  })();
+
+  // ── Initial render ──────────────────────────────────────────────────────
+  renderGallery();
+  updatePriceDisplay();
+  renderIngredients();
+  renderBrewSteps();
+  showSlide(0);
+  startAutoAdvance();
+})();
+</script>
+
+<script>PF.foot();</script>
+</body>
+</html>

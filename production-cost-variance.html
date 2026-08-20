@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Production Cost Variance — Justin Adler Portfolio</title>
+<link rel="stylesheet" href="assets/portfolio.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="assets/portfolio.js"></script>
+</head>
+<body>
+<script>PF.chrome('production-cost-variance.html');</script>
+
+<main>
+<script>document.write(PF.crumbs('Production Cost Variance'));</script>
+
+<h1>Production Cost — Unit Labor Cost &amp; Variance</h1>
+<p class="sub">
+  Per-unit direct labor cost by production stage, standard versus actual, with variance surfaced at the
+  SKU level so pricing decisions rest on a real cost basis rather than a standard-cost assumption.
+  Brand, product lines and cost figures are fictional.
+</p>
+
+<div class="controls">
+  <div class="seg" data-seg="view">
+    <button data-v="sku" aria-pressed="true">By SKU</button>
+    <button data-v="stage" aria-pressed="false">By Stage</button>
+    <button data-v="month" aria-pressed="false">By Month</button>
+  </div>
+  <select id="categorySel">
+    <option value="all">All Categories</option>
+    <option value="Ground">Ground</option>
+    <option value="Tea Bags">Tea Bags</option>
+    <option value="Single-Serve">Single-Serve</option>
+    <option value="Sampler">Sampler</option>
+    <option value="Bulk">Bulk</option>
+  </select>
+  <select id="yearSel">
+    <option value="2024">2024</option>
+    <option value="2025">2025</option>
+    <option value="2026" selected>2026</option>
+  </select>
+  <div class="seg" data-seg="thresh">
+    <button data-v="all" aria-pressed="true">All</button>
+    <button data-v="10" aria-pressed="false">&gt;10%</button>
+    <button data-v="25" aria-pressed="false">&gt;25%</button>
+  </div>
+</div>
+
+<div class="grid g3">
+  <div class="kpi">
+    <div class="lbl">Avg Standard Labor $/unit</div>
+    <div class="val" id="kpiAvgStd">—</div>
+  </div>
+  <div class="kpi">
+    <div class="lbl">Avg Actual Labor $/unit</div>
+    <div class="val" id="kpiAvgActual">—</div>
+  </div>
+  <div class="kpi">
+    <div class="lbl">Variance %</div>
+    <div class="val" id="kpiVariancePct">—</div>
+  </div>
+  <div class="kpi">
+    <div class="lbl">Total Labor Cost</div>
+    <div class="val" id="kpiTotalCost">—</div>
+  </div>
+  <div class="kpi">
+    <div class="lbl">SKUs Over Threshold</div>
+    <div class="val" id="kpiOverThreshold">—</div>
+    <div class="dlt flat">variance &ge; 25%, current category</div>
+  </div>
+  <div class="kpi">
+    <div class="lbl">Worst Variance SKU</div>
+    <div class="val" id="kpiWorstSku">—</div>
+  </div>
+</div>
+
+<h2>Standard vs. Actual Labor Cost per Unit — Top 12 SKUs by Volume</h2>
+<div class="card">
+  <div class="chart-wrap"><canvas id="chartSku"></canvas></div>
+</div>
+
+<h2>Variance Contribution by Production Stage</h2>
+<div class="card">
+  <div class="chart-wrap"><canvas id="chartStage"></canvas></div>
+  <div class="note">Dollar variance = (actual $/unit − standard $/unit) × units, summed for every SKU whose primary labor is performed on that stage. This is what actually moves total overrun, not just which stage looks busiest.</div>
+</div>
+
+<h2 id="monthHeading">Monthly Labor Cost per Unit — Actual vs. Standard</h2>
+<div class="card">
+  <div class="chart-wrap"><canvas id="chartMonth"></canvas></div>
+</div>
+
+<h2>SKU Variance Detail</h2>
+<div class="card">
+  <div class="tbl-scroll" id="tableWrap"></div>
+</div>
+
+<div class="card">
+  <h2 style="margin-top:0">What's Driving the Overrun</h2>
+  <p class="sub" style="margin-bottom:0">
+    A small number of SKUs carry most of the labor cost overrun, and the pattern is consistent: it is run
+    size, not line speed, that drives it. Changeover and setup labor on a stage like Weigh &amp; Fill or
+    Tea Bag Machine is roughly fixed per run. Spread over 40,000 units it barely shows up in the per-unit
+    cost; spread over 1,400 units — a small Sampler or a new-item Single-Serve batch — the same fixed labor
+    becomes a large per-unit charge. The Sampler and low-volume Single-Serve lines above are not running
+    inefficiently on the line; they are simply run in short batches, and the standard cost assumption baked
+    into their pricing has not caught up with that. The monthly view shows the same effect at a smaller
+    scale: the slower-volume months of the year, not just the smallest SKUs, show worse variance for the
+    same reason.
+  </p>
+</div>
+
+<p class="note">All figures on this page are synthetic and deterministic (seeded), not derived from any real
+production data. "Northvale Beverage Co.", its SKUs and its cost figures are fictional.</p>
+
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  PF.applyChartDefaults();
+
+  // ── Reference data (all synthetic) ─────────────────────────────────────
+  var STAGES = ['Weigh & Fill', 'Bag Line', 'Tea Bag Machine', 'Blending', 'Assembly', 'QC / Taste Panel'];
+  var CATEGORIES = ['Ground', 'Tea Bags', 'Single-Serve', 'Sampler', 'Bulk'];
+  var SEASONAL = [1.00, 0.95, 1.02, 1.00, 0.98, 0.90, 0.85, 0.88, 0.97, 1.05, 1.18, 1.22]; // Jan..Dec, avg = 1.0
+  var YEAR_MULT = { 2024: 0.93, 2025: 1.00, 2026: 1.06 };
+
+  var SKU_CATALOG = [
+    { sku: 'NV-1001', desc: 'Ground — Original 12oz',        category: 'Ground',       stage: 'Weigh & Fill',      baseUnits: 118000, std: 0.22 },
+    { sku: 'NV-1002', desc: 'Ground — Vanilla Nut 12oz',      category: 'Ground',       stage: 'Weigh & Fill',      baseUnits: 94000,  std: 0.24 },
+    { sku: 'NV-1003', desc: 'Ground — Mocha 12oz',            category: 'Ground',       stage: 'Weigh & Fill',      baseUnits: 61000,  std: 0.26 },
+    { sku: 'NV-1004', desc: 'Ground — Dark Roast 12oz',       category: 'Ground',       stage: 'Weigh & Fill',      baseUnits: 47000,  std: 0.27 },
+    { sku: 'NV-1005', desc: 'Ground — French Roast 32oz',     category: 'Ground',       stage: 'Blending',          baseUnits: 22000,  std: 0.34 },
+    { sku: 'NV-2010', desc: 'Tea Bags — Original 25ct',       category: 'Tea Bags',     stage: 'Tea Bag Machine',   baseUnits: 88000,  std: 0.31 },
+    { sku: 'NV-2011', desc: 'Tea Bags — Chai Spice 25ct',     category: 'Tea Bags',     stage: 'Tea Bag Machine',   baseUnits: 52000,  std: 0.33 },
+    { sku: 'NV-2012', desc: 'Tea Bags — Chocolate 25ct',      category: 'Tea Bags',     stage: 'Tea Bag Machine',   baseUnits: 28000,  std: 0.36 },
+    { sku: 'NV-2013', desc: 'Tea Bags — Herbal Mint 25ct',    category: 'Tea Bags',     stage: 'Tea Bag Machine',   baseUnits: 15000,  std: 0.39 },
+    { sku: 'NV-2014', desc: 'Tea Bags — Golden Turmeric 25ct',category: 'Tea Bags',     stage: 'QC / Taste Panel',  baseUnits: 6800,   std: 0.44 },
+    { sku: 'NV-3020', desc: 'Single-Serve — Original 10ct',   category: 'Single-Serve', stage: 'Assembly',          baseUnits: 41000,  std: 0.52 },
+    { sku: 'NV-3021', desc: 'Single-Serve — Vanilla Nut 10ct',category: 'Single-Serve', stage: 'Assembly',          baseUnits: 26000,  std: 0.55 },
+    { sku: 'NV-3022', desc: 'Single-Serve — Mocha 10ct',      category: 'Single-Serve', stage: 'Assembly',          baseUnits: 14000,  std: 0.61 },
+    { sku: 'NV-3023', desc: 'Single-Serve — Dark Roast 10ct', category: 'Single-Serve', stage: 'QC / Taste Panel',  baseUnits: 8200,   std: 0.68 },
+    { sku: 'NV-4030', desc: 'Sampler — Discovery 6pk',        category: 'Sampler',      stage: 'Assembly',          baseUnits: 9600,   std: 0.95 },
+    { sku: 'NV-4031', desc: 'Sampler — Holiday 6pk',          category: 'Sampler',      stage: 'Assembly',          baseUnits: 4200,   std: 1.15 },
+    { sku: 'NV-4032', desc: 'Sampler — Chai Trio 4pk',        category: 'Sampler',      stage: 'Assembly',          baseUnits: 2600,   std: 1.35 },
+    { sku: 'NV-4033', desc: 'Sampler — New Release 4pk',      category: 'Sampler',      stage: 'QC / Taste Panel',  baseUnits: 1400,   std: 1.62 },
+    { sku: 'NV-5040', desc: 'Bulk — Original 5lb',            category: 'Bulk',         stage: 'Weigh & Fill',      baseUnits: 15200,  std: 0.16 },
+    { sku: 'NV-5041', desc: 'Bulk — Dark Roast 5lb',          category: 'Bulk',         stage: 'Weigh & Fill',      baseUnits: 9800,   std: 0.18 },
+    { sku: 'NV-5042', desc: 'Bulk — Foodservice 20lb',        category: 'Bulk',         stage: 'Bag Line',          baseUnits: 3100,   std: 0.19 },
+    { sku: 'NV-5043', desc: 'Bulk — Vanilla Nut 5lb',         category: 'Bulk',         stage: 'Blending',          baseUnits: 5400,   std: 0.20 }
+  ];
+
+  // ── Deterministic dataset build (seeded per year — no Math.random) ─────
+  function baseVarPct(units) {
+    return Math.min(58, Math.max(3, 2600 / Math.sqrt(units)));
+  }
+
+  function buildYearData(year) {
+    var rng = PF.rng(20240000 + year * 17);
+    var mult = YEAR_MULT[year] || 1;
+    return SKU_CATALOG.map(function (s) {
+      var jUnits = 1 + (rng() - 0.5) * 0.12;
+      var jVar = 1 + (rng() - 0.5) * 0.30;
+      var units = Math.round(s.baseUnits * mult * jUnits);
+      var varPct = baseVarPct(s.baseUnits) * jVar;
+      var actual = s.std * (1 + varPct / 100);
+      var monthly = SEASONAL.map(function (seasonal, m) {
+        var jm = 1 + (rng() - 0.5) * 0.08;
+        var mUnits = (units / 12) * seasonal * jm;
+        var mVarPct = varPct / seasonal;
+        var mActual = s.std * (1 + mVarPct / 100);
+        return { units: mUnits, actual: mActual };
+      });
+      return {
+        sku: s.sku, desc: s.desc, category: s.category, stage: s.stage,
+        units: units, std: s.std, actual: actual, varPct: varPct,
+        varDollar: (actual - s.std) * units, monthly: monthly
+      };
+    });
+  }
+
+  function statusOf(varPct) {
+    if (varPct >= 25) return { cls: 'bad', label: 'Over' };
+    if (varPct >= 10) return { cls: 'warn', label: 'Watch' };
+    return { cls: 'good', label: 'On Standard' };
+  }
+
+  // ── Chart instances ──────────────────────────────────────────────────────
+  var chartSku = null, chartStage = null, chartMonth = null;
+
+  function moneyTick(v) { return '$' + Number(v).toFixed(2); }
+
+  function destroy(c) { if (c) c.destroy(); }
+
+  function render() {
+    var view = PF.segValue('view') || 'sku';
+    var category = document.getElementById('categorySel').value;
+    var year = parseInt(document.getElementById('yearSel').value, 10);
+    var threshRaw = PF.segValue('thresh') || 'all';
+    var threshMin = threshRaw === 'all' ? 0 : parseInt(threshRaw, 10);
+
+    var data = buildYearData(year);
+    var catFiltered = data.filter(function (d) { return category === 'all' || d.category === category; });
+    var filtered = catFiltered.filter(function (d) { return d.varPct > threshMin; });
+
+    var c = PF.colors();
+    var series = PF.series();
+    var stageColor = {};
+    STAGES.forEach(function (s, i) { stageColor[s] = series[i % series.length]; });
+
+    document.getElementById('monthHeading').textContent =
+      'Monthly Labor Cost per Unit — Actual vs. Standard (' + year + ')';
+
+    // ── KPIs ──────────────────────────────────────────────────────────────
+    var totalUnits = filtered.reduce(function (a, d) { return a + d.units; }, 0);
+    var avgStd = totalUnits ? filtered.reduce(function (a, d) { return a + d.std * d.units; }, 0) / totalUnits : NaN;
+    var avgActual = totalUnits ? filtered.reduce(function (a, d) { return a + d.actual * d.units; }, 0) / totalUnits : NaN;
+    var variancePct = avgStd ? (avgActual - avgStd) / avgStd * 100 : NaN;
+    var totalLaborCost = filtered.reduce(function (a, d) { return a + d.actual * d.units; }, 0);
+
+    var overThreshold = catFiltered.filter(function (d) { return d.varPct >= 25; });
+    var worst = catFiltered.reduce(function (best, d) {
+      return (!best || d.varPct > best.varPct) ? d : best;
+    }, null);
+
+    document.getElementById('kpiAvgStd').textContent = PF.usd(avgStd, 2);
+    document.getElementById('kpiAvgActual').textContent = PF.usd(avgActual, 2);
+    document.getElementById('kpiVariancePct').innerHTML = PF.delta(variancePct, 1, true);
+    document.getElementById('kpiTotalCost').textContent = totalUnits ? PF.usdK(totalLaborCost) : '—';
+    document.getElementById('kpiOverThreshold').textContent = catFiltered.length ? String(overThreshold.length) : '—';
+    document.getElementById('kpiWorstSku').textContent = worst ? worst.sku + ' (+' + worst.varPct.toFixed(1) + '%)' : '—';
+
+    // ── Chart 1: standard vs actual, top 12 by volume ──────────────────────
+    var top12 = filtered.slice().sort(function (a, b) { return b.units - a.units; }).slice(0, 12);
+    destroy(chartSku);
+    chartSku = new Chart(document.getElementById('chartSku'), {
+      type: 'bar',
+      data: {
+        labels: top12.map(function (d) { return d.sku; }),
+        datasets: [
+          { label: 'Standard $/unit', data: top12.map(function (d) { return d.std; }), backgroundColor: series[0], borderRadius: 4, maxBarThickness: 22 },
+          { label: 'Actual $/unit', data: top12.map(function (d) { return d.actual; }), backgroundColor: series[1], borderRadius: 4, maxBarThickness: 22 }
+        ]
+      },
+      options: {
+        scales: {
+          x: { grid: { display: false }, ticks: { color: c.muted } },
+          y: { beginAtZero: true, grid: { color: c.line }, ticks: { color: c.muted, callback: moneyTick } }
+        },
+        plugins: {
+          legend: { display: true },
+          tooltip: {
+            callbacks: {
+              afterTitle: function (items) {
+                var d = top12[items[0].dataIndex];
+                return d ? d.desc : '';
+              },
+              label: function (item) { return item.dataset.label + ': ' + PF.usd(item.parsed.y, 2); }
+            }
+          }
+        }
+      }
+    });
+
+    // ── Chart 2: variance contribution by stage ────────────────────────────
+    var stageTotals = STAGES.map(function (s) {
+      var val = filtered.filter(function (d) { return d.stage === s; })
+        .reduce(function (a, d) { return a + d.varDollar; }, 0);
+      return { stage: s, value: val };
+    }).sort(function (a, b) { return b.value - a.value; });
+
+    destroy(chartStage);
+    chartStage = new Chart(document.getElementById('chartStage'), {
+      type: 'bar',
+      data: {
+        labels: stageTotals.map(function (s) { return s.stage; }),
+        datasets: [{
+          label: 'Variance $ / year',
+          data: stageTotals.map(function (s) { return s.value; }),
+          backgroundColor: stageTotals.map(function (s) { return stageColor[s.stage]; }),
+          borderRadius: 4, maxBarThickness: 26
+        }]
+      },
+      options: {
+        indexAxis: 'y',
+        scales: {
+          x: { beginAtZero: true, grid: { color: c.line }, ticks: { color: c.muted, callback: function (v) { return PF.usd(v, 0); } } },
+          y: { grid: { display: false }, ticks: { color: c.muted } }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: function (item) { return PF.usd(item.parsed.x, 0) + ' / year'; } } }
+        }
+      }
+    });
+
+    // ── Chart 3: monthly labor cost per unit trend ─────────────────────────
+    var monthActual = [], monthStd = [];
+    for (var m = 0; m < 12; m++) {
+      var mu = 0, wa = 0, ws = 0;
+      filtered.forEach(function (d) {
+        var mm = d.monthly[m];
+        mu += mm.units;
+        wa += mm.actual * mm.units;
+        ws += d.std * mm.units;
+      });
+      monthActual.push(mu ? wa / mu : null);
+      monthStd.push(mu ? ws / mu : null);
+    }
+    destroy(chartMonth);
+    chartMonth = new Chart(document.getElementById('chartMonth'), {
+      type: 'line',
+      data: {
+        labels: PF.MONTHS,
+        datasets: [
+          { label: 'Actual $/unit', data: monthActual, borderColor: series[1], backgroundColor: 'transparent', tension: 0.3, pointRadius: 3, borderWidth: 2, spanGaps: true },
+          { label: 'Standard $/unit', data: monthStd, borderColor: series[0], backgroundColor: 'transparent', borderDash: [5, 4], tension: 0.3, pointRadius: 0, borderWidth: 2, spanGaps: true }
+        ]
+      },
+      options: {
+        scales: {
+          x: { grid: { display: false }, ticks: { color: c.muted } },
+          y: { grid: { color: c.line }, ticks: { color: c.muted, callback: moneyTick } }
+        },
+        plugins: {
+          legend: { display: true },
+          tooltip: { callbacks: { label: function (item) { return item.dataset.label + ': ' + PF.usd(item.parsed.y, 2); } } }
+        }
+      }
+    });
+
+    // ── Table ───────────────────────────────────────────────────────────────
+    renderTable(view, filtered, year);
+    PF.initSort(document.getElementById('tableWrap'));
+  }
+
+  function pillHtml(status) { return '<span class="pill ' + status.cls + '">' + status.label + '</span>'; }
+
+  function renderTable(view, filtered, year) {
+    var head1 = view === 'sku' ? 'SKU' : (view === 'stage' ? 'Stage' : 'Month');
+    var rows = [];
+
+    if (view === 'sku') {
+      filtered.slice().sort(function (a, b) { return b.varPct - a.varPct; }).forEach(function (d) {
+        rows.push({
+          key: d.sku, desc: d.desc, category: d.category, units: d.units,
+          std: d.std, actual: d.actual, varDollar: d.varDollar, varPct: d.varPct,
+          stage: d.stage, status: statusOf(d.varPct)
+        });
+      });
+    } else if (view === 'stage') {
+      STAGES.forEach(function (stage) {
+        var subset = filtered.filter(function (d) { return d.stage === stage; });
+        if (!subset.length) return;
+        var units = subset.reduce(function (a, d) { return a + d.units; }, 0);
+        var std = subset.reduce(function (a, d) { return a + d.std * d.units; }, 0) / units;
+        var actual = subset.reduce(function (a, d) { return a + d.actual * d.units; }, 0) / units;
+        var varDollar = subset.reduce(function (a, d) { return a + d.varDollar; }, 0);
+        var varPct = (actual - std) / std * 100;
+        var cats = subset.reduce(function (arr, d) { return arr.indexOf(d.category) === -1 ? arr.concat(d.category) : arr; }, []);
+        rows.push({
+          key: stage, desc: subset.length + ' SKUs on this stage', category: cats.length > 1 ? 'Mixed' : cats[0],
+          units: units, std: std, actual: actual, varDollar: varDollar, varPct: varPct,
+          stage: stage, status: statusOf(varPct)
+        });
+      });
+      rows.sort(function (a, b) { return b.varPct - a.varPct; });
+    } else {
+      for (var m = 0; m < 12; m++) {
+        var mu = 0, wa = 0, ws = 0;
+        var stageDollar = {};
+        STAGES.forEach(function (s) { stageDollar[s] = 0; });
+        filtered.forEach(function (d) {
+          var mm = d.monthly[m];
+          mu += mm.units;
+          wa += mm.actual * mm.units;
+          ws += d.std * mm.units;
+          stageDollar[d.stage] += (mm.actual - d.std) * mm.units;
+        });
+        if (!mu) continue;
+        var actual = wa / mu, std = ws / mu;
+        var topStage = STAGES.reduce(function (best, s) {
+          return (!best || stageDollar[s] > stageDollar[best]) ? s : best;
+        }, null);
+        rows.push({
+          key: PF.MONTHS[m] + ' ' + year, desc: 'Monthly rollup', category: 'All',
+          units: mu, std: std, actual: actual, varDollar: (actual - std) * mu,
+          varPct: (actual - std) / std * 100, stage: topStage, status: statusOf((actual - std) / std * 100)
+        });
+      }
+    }
+
+    var thead = '<thead><tr>' +
+      '<th class="sortable" data-sort="text">' + head1 + '</th>' +
+      '<th class="sortable" data-sort="text">Description</th>' +
+      '<th class="sortable" data-sort="text">Category</th>' +
+      '<th class="sortable num" data-sort="num">Units</th>' +
+      '<th class="sortable num" data-sort="num">Std $/unit</th>' +
+      '<th class="sortable num" data-sort="num">Actual $/unit</th>' +
+      '<th class="sortable num" data-sort="num">Variance $</th>' +
+      '<th class="sortable num" data-sort="num">Variance %</th>' +
+      '<th class="sortable" data-sort="text">Stage driving variance</th>' +
+      '<th class="sortable" data-sort="text">Status</th>' +
+      '</tr></thead>';
+
+    var body = rows.length ? rows.map(function (r) {
+      var vd = (r.varDollar >= 0 ? '+' : '−') + PF.usd(Math.abs(r.varDollar), 0);
+      return '<tr>' +
+        '<td>' + r.key + '</td>' +
+        '<td>' + r.desc + '</td>' +
+        '<td>' + r.category + '</td>' +
+        '<td class="num" data-v="' + r.units + '">' + PF.num(r.units) + '</td>' +
+        '<td class="num" data-v="' + r.std + '">' + PF.usd(r.std, 2) + '</td>' +
+        '<td class="num" data-v="' + r.actual + '">' + PF.usd(r.actual, 2) + '</td>' +
+        '<td class="num" data-v="' + r.varDollar + '">' + vd + '</td>' +
+        '<td class="num" data-v="' + r.varPct + '">' + PF.delta(r.varPct, 1, true) + '</td>' +
+        '<td>' + r.stage + '</td>' +
+        '<td>' + pillHtml(r.status) + '</td>' +
+        '</tr>';
+    }).join('') : '<tr><td colspan="10">No SKUs match the current filters.</td></tr>';
+
+    document.getElementById('tableWrap').innerHTML = '<table>' + thead + '<tbody>' + body + '</tbody></table>';
+  }
+
+  // ── Wire controls ─────────────────────────────────────────────────────────
+  PF.initSeg(document, render);
+  document.getElementById('categorySel').addEventListener('change', render);
+  document.getElementById('yearSel').addEventListener('change', render);
+
+  render();
+  PF.foot();
+})();
+</script>
+
+</body>
+</html>

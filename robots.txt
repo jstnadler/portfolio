@@ -1,0 +1,3 @@
+# Reachable by direct link; deliberately not indexed.
+User-agent: *
+Disallow: /

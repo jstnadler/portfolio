@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Production Throughput · Justin Adler Portfolio</title>
+<link rel="stylesheet" href="assets/portfolio.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="assets/portfolio.js"></script>
+</head>
+<body>
+<main id="app"></main>
+<script>
+(function () {
+  'use strict';
+
+  // ────────────────────────────────────────────────────────────────────────
+  // Data model — ALL SYNTHETIC, seeded deterministically via PF.rng(). No unseeded RNG used.
+  // Fictional brand: Northvale Beverage Co. Fictional lines/machines only.
+  // ────────────────────────────────────────────────────────────────────────
+  var CATS = ['Ground', 'Tea Bags', 'Single-Serve', 'Sampler', 'Bulk'];
+
+  var LINES = [
+    { name: 'Pouch Line 1',      seed: 1001, mhrStd: 950,  opsStd: 2,   utilBase: 0.88, cats: ['Ground', 'Single-Serve', 'Sampler'] },
+    { name: 'Pouch Line 2',      seed: 1002, mhrStd: 890,  opsStd: 2,   utilBase: 0.84, cats: ['Ground', 'Single-Serve', 'Sampler'] },
+    { name: 'Bag Line A',        seed: 1003, mhrStd: 930,  opsStd: 3,   utilBase: 0.81, cats: ['Bulk', 'Ground'] },
+    { name: 'Tea Bag Machine 1', seed: 1004, mhrStd: 2350, opsStd: 1,   utilBase: 0.90, cats: ['Tea Bags'] },
+    { name: 'Tea Bag Machine 2', seed: 1005, mhrStd: 2150, opsStd: 1.5, utilBase: 0.86, cats: ['Tea Bags'] }
+  ];
+
+  var SKU_MAP = {
+    'Pouch Line 1|Ground': 'NV-1010', 'Pouch Line 1|Single-Serve': 'NV-1042', 'Pouch Line 1|Sampler': 'NV-1077',
+    'Pouch Line 2|Ground': 'NV-1110', 'Pouch Line 2|Single-Serve': 'NV-1142', 'Pouch Line 2|Sampler': 'NV-1177',
+    'Bag Line A|Bulk': 'NV-2005', 'Bag Line A|Ground': 'NV-2011',
+    'Tea Bag Machine 1|Tea Bags': 'NV-3300',
+    'Tea Bag Machine 2|Tea Bags': 'NV-3301'
+  };
+
+  var YEARS = ['2024', '2025', '2026'];
+  function monthsInYear(y) { return y === '2026' ? 8 : 12; } // 2026 = YTD through Aug
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+  function buildRuns() {
+    var runs = [];
+    YEARS.forEach(function (year, yi) {
+      var nMonths = monthsInYear(year);
+      LINES.forEach(function (line) {
+        var rnd = PF.rng(line.seed + yi * 97);
+        for (var m = 0; m < nMonths; m++) {
+          var seasonal = 1 + 0.05 * Math.sin((m / 12) * Math.PI * 2 + (line.seed % 5));
+          var yoy = 1 + 0.025 * yi;
+          var runsInMonth = 3 + Math.round(rnd() * 2);
+          for (var r = 0; r < runsInMonth; r++) {
+            var day = 2 + Math.floor(rnd() * 26);
+            var cat = line.cats[Math.floor(rnd() * line.cats.length)];
+            var sku = SKU_MAP[line.name + '|' + cat] || 'NV-0000';
+            var runHours = 6 + rnd() * 4;
+            var operators = Math.max(1, +(line.opsStd * (1 + PF.jitter(rnd) * 0.08)).toFixed(1));
+            var mhrActual = line.mhrStd * seasonal * yoy * (1 + PF.jitter(rnd) * 0.09);
+            var units = Math.round(mhrActual * runHours);
+            var ohrActual = units / (runHours * operators);
+            runs.push({
+              date: year + '-' + pad(m + 1) + '-' + pad(day),
+              year: year, month: m, line: line.name, cat: cat, sku: sku,
+              units: units, runHours: +runHours.toFixed(1), operators: operators,
+              mhr: +mhrActual.toFixed(0), ohr: +ohrActual.toFixed(0)
+            });
+          }
+        }
+      });
+    });
+    return runs;
+  }
+
+  function buildUtilization() {
+    var map = {};
+    YEARS.forEach(function (year, yi) {
+      var nMonths = monthsInYear(year);
+      LINES.forEach(function (line) {
+        var rnd = PF.rng(line.seed * 7 + yi * 13);
+        map[line.name] = map[line.name] || {};
+        map[line.name][year] = [];
+        for (var m = 0; m < nMonths; m++) {
+          var v = line.utilBase + PF.jitter(rnd) * 0.05 + yi * 0.005;
+          v = Math.min(0.97, Math.max(0.55, v));
+          map[line.name][year].push(v);
+        }
+      });
+    });
+    return map;
+  }
+
+  var RUNS = buildRuns();
+  var UTIL = buildUtilization();
+  var BASIS_LABEL = { mhr: 'Units / Machine-Hour', ohr: 'Units / Operator-Hour', run: 'Units / Run' };
+
+  // ── Aggregation helpers ───────────────────────────────────────────────────
+  function aggregate(list) {
+    var totalUnits = 0, totalMHrs = 0, totalOHrs = 0;
+    list.forEach(function (r) {
+      totalUnits += r.units;
+      totalMHrs += r.runHours;
+      totalOHrs += r.runHours * r.operators;
+    });
+    return {
+      units: totalUnits,
+      mhrRate: totalMHrs ? totalUnits / totalMHrs : 0,
+      ohrRate: totalOHrs ? totalUnits / totalOHrs : 0,
+      avgRunSize: list.length ? totalUnits / list.length : 0,
+      runs: list.length
+    };
+  }
+
+  function filterRuns(year, lineSel) {
+    return RUNS.filter(function (r) {
+      if (r.year !== year) return false;
+      if (lineSel !== 'All' && r.line !== lineSel) return false;
+      return true;
+    });
+  }
+
+  function avgUtilization(year, lineSel) {
+    var names = lineSel === 'All' ? LINES.map(function (l) { return l.name; }) : [lineSel];
+    var vals = [];
+    names.forEach(function (n) { (UTIL[n][year] || []).forEach(function (v) { vals.push(v); }); });
+    if (!vals.length) return 0;
+    return vals.reduce(function (a, b) { return a + b; }, 0) / vals.length * 100;
+  }
+
+  function periodPlan(year, periodSel) {
+    var nMonths = monthsInYear(year);
+    if (periodSel === 'monthly') {
+      return { labels: PF.MONTHS.slice(0, nMonths), nGroups: nMonths, groupOf: function (m) { return m; } };
+    }
+    var nQ = Math.ceil(nMonths / 3);
+    var labels = [];
+    for (var q = 0; q < nQ; q++) labels.push('Q' + (q + 1));
+    return { labels: labels, nGroups: nQ, groupOf: function (m) { return Math.floor(m / 3); } };
+  }
+
+  function basisValue(basisSel, agg) {
+    if (basisSel === 'mhr') return agg.mhrRate;
+    if (basisSel === 'ohr') return agg.ohrRate;
+    return agg.avgRunSize;
+  }
+
+  function pctChange(cur, prior) {
+    if (prior === null || prior === undefined || !prior) return null;
+    return (cur - prior) / prior * 100;
+  }
+
+  // ── Chart data builders ───────────────────────────────────────────────────
+  function chart1Data(year, lineSel, basisSel, periodSel) {
+    var pg = periodPlan(year, periodSel);
+    var lines = lineSel === 'All' ? LINES : LINES.filter(function (l) { return l.name === lineSel; });
+    var palette = PF.series();
+    var datasets = lines.map(function (line, i) {
+      var buckets = [];
+      for (var g = 0; g < pg.nGroups; g++) buckets.push([]);
+      RUNS.filter(function (r) { return r.year === year && r.line === line.name; })
+        .forEach(function (r) { buckets[pg.groupOf(r.month)].push(r); });
+      var data = buckets.map(function (list) {
+        if (!list.length) return null;
+        return basisValue(basisSel, aggregate(list));
+      });
+      var color = palette[i % palette.length];
+      return { label: line.name, data: data, borderColor: color, backgroundColor: color, tension: 0.3, pointRadius: 2, borderWidth: 2, fill: false };
+    });
+    return { labels: pg.labels, datasets: datasets };
+  }
+
+  function chart2Data(year, lineSel, basisSel) {
+    var palette = PF.series();
+    var labels = LINES.map(function (l) { return l.name; });
+    var data = LINES.map(function (line) {
+      var list = RUNS.filter(function (r) { return r.year === year && r.line === line.name; });
+      return basisValue(basisSel, aggregate(list));
+    });
+    var colors = LINES.map(function (line, i) {
+      var c = palette[i % palette.length];
+      return (lineSel !== 'All' && line.name !== lineSel) ? c + '55' : c;
+    });
+    return { labels: labels, datasets: [{ label: BASIS_LABEL[basisSel], data: data, backgroundColor: colors, borderRadius: 4 }] };
+  }
+
+  function chart3Data(year, lineSel, periodSel) {
+    var pg = periodPlan(year, periodSel);
+    var palette = PF.series();
+    var filtered = RUNS.filter(function (r) { return r.year === year && (lineSel === 'All' || r.line === lineSel); });
+    var datasets = CATS.map(function (cat, i) {
+      var buckets = new Array(pg.nGroups).fill(0);
+      filtered.filter(function (r) { return r.cat === cat; }).forEach(function (r) { buckets[pg.groupOf(r.month)] += r.units; });
+      return { label: cat, data: buckets, backgroundColor: palette[i % palette.length] };
+    });
+    return { labels: pg.labels, datasets: datasets };
+  }
+
+  function formatDate(iso) {
+    var parts = iso.split('-');
+    var mIdx = parseInt(parts[1], 10) - 1;
+    return PF.MONTHS[mIdx] + ' ' + parseInt(parts[2], 10) + ', ' + parts[0];
+  }
+
+  function buildTableRows(year, lineSel) {
+    var lineStd = {};
+    LINES.forEach(function (l) { lineStd[l.name] = l.mhrStd; });
+    var list = filterRuns(year, lineSel).slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; });
+    var capped = list.slice(0, 60);
+    return capped.map(function (r) {
+      var ratio = r.mhr / lineStd[r.line];
+      var pillClass = ratio >= 1.0 ? 'good' : (ratio >= 0.92 ? 'warn' : 'bad');
+      var pillPct = Math.round(ratio * 100);
+      return '<tr>' +
+        '<td data-v="' + r.date + '">' + formatDate(r.date) + '</td>' +
+        '<td>' + r.line + '</td>' +
+        '<td>' + r.cat + '</td>' +
+        '<td>' + r.sku + '</td>' +
+        '<td class="num">' + PF.num(r.units) + '</td>' +
+        '<td class="num">' + r.runHours.toFixed(1) + '</td>' +
+        '<td class="num">' + r.operators.toFixed(1) + '</td>' +
+        '<td class="num">' + PF.num(r.mhr) + '</td>' +
+        '<td class="num">' + PF.num(r.ohr) + '</td>' +
+        '<td class="num" data-v="' + pillPct + '"><span class="pill ' + pillClass + '">' + pillPct + '% std</span></td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  // ── Insight callout (computed from the same dataset, fixed reference year) ─
+  var INSIGHT_YEAR = '2025';
+  var bagAgg = aggregate(filterRuns(INSIGHT_YEAR, 'Bag Line A'));
+  var pouchAgg = aggregate(filterRuns(INSIGHT_YEAR, 'Pouch Line 1'));
+  var insightHtml =
+    '<h3>What the data is telling us</h3>' +
+    '<div>In ' + INSIGHT_YEAR + ', <strong>Bag Line A</strong> ran at ' + PF.num(bagAgg.mhrRate, 0) +
+    ' units per machine-hour — within a few percent of <strong>Pouch Line 1</strong> at ' + PF.num(pouchAgg.mhrRate, 0) +
+    ' units per machine-hour. But per operator-hour, Bag Line A produced only ' + PF.num(bagAgg.ohrRate, 0) +
+    ' units against Pouch Line 1&rsquo;s ' + PF.num(pouchAgg.ohrRate, 0) +
+    ' — materially lower, because Bag Line A runs with about 3 operators per shift versus 2 on the pouch lines. ' +
+    'Machine-hour throughput is comparable across the two lines; the operator-hour gap points to a staffing-model ' +
+    'difference, not an equipment constraint. Worth testing a leaner crew configuration on Bag Line A before assuming ' +
+    'it needs new equipment.</div>';
+
+  // ── Static shell for the page body ────────────────────────────────────────
+  var mainHtml =
+    PF.crumbs('Production Throughput') +
+    '<h1>Production Throughput</h1>' +
+    '<div class="sub">Retail units produced per machine-hour, per operator-hour and per run, by packing line and ' +
+    'product type. Brand, product lines and equipment names are fictional.</div>' +
+
+    '<div class="controls">' +
+      '<select id="lineSel">' +
+        '<option value="All">All Lines</option>' +
+        LINES.map(function (l) { return '<option value="' + l.name + '">' + l.name + '</option>'; }).join('') +
+      '</select>' +
+      '<div class="seg" data-seg="basis">' +
+        '<button data-v="mhr" aria-pressed="true">Units / Machine-Hour</button>' +
+        '<button data-v="ohr" aria-pressed="false">Units / Operator-Hour</button>' +
+        '<button data-v="run" aria-pressed="false">Units / Run</button>' +
+      '</div>' +
+      '<div class="seg" data-seg="period">' +
+        '<button data-v="monthly" aria-pressed="true">Monthly</button>' +
+        '<button data-v="quarterly" aria-pressed="false">Quarterly</button>' +
+      '</div>' +
+      '<select id="yearSel">' +
+        YEARS.map(function (y) { return '<option value="' + y + '"' + (y === '2025' ? ' selected' : '') + '>' + y + '</option>'; }).join('') +
+      '</select>' +
+    '</div>' +
+
+    '<div class="grid g3">' +
+      '<div class="kpi"><div class="lbl">Total Units Produced</div><div class="val" id="kpi-total-units">—</div><div class="dlt" id="kpi-total-units-dlt"></div></div>' +
+      '<div class="kpi"><div class="lbl">Units per Machine-Hour</div><div class="val" id="kpi-mhr">—</div><div class="dlt" id="kpi-mhr-dlt"></div></div>' +
+      '<div class="kpi"><div class="lbl">Units per Operator-Hour</div><div class="val" id="kpi-ohr">—</div><div class="dlt" id="kpi-ohr-dlt"></div></div>' +
+      '<div class="kpi"><div class="lbl">Avg Run Size</div><div class="val" id="kpi-avgrun">—</div><div class="dlt" id="kpi-avgrun-dlt"></div></div>' +
+      '<div class="kpi"><div class="lbl">Line Utilization %</div><div class="val" id="kpi-util">—</div><div class="dlt" id="kpi-util-dlt"></div></div>' +
+      '<div class="kpi"><div class="lbl">Runs Completed</div><div class="val" id="kpi-runs">—</div><div class="dlt" id="kpi-runs-dlt"></div></div>' +
+    '</div>' +
+
+    '<h2>Throughput</h2>' +
+    '<div class="card"><h3 id="chart1-title">Throughput Over Time by Line</h3><div class="chart-wrap"><canvas id="chart1"></canvas></div></div>' +
+
+    '<div class="grid g2">' +
+      '<div class="card"><h3 id="chart2-title">Throughput by Line</h3><div class="chart-wrap"><canvas id="chart2"></canvas></div></div>' +
+      '<div class="card"><h3 id="chart3-title">Units by Product Category per Month</h3><div class="chart-wrap"><canvas id="chart3"></canvas></div></div>' +
+    '</div>' +
+
+    '<h2>Insight</h2>' +
+    '<div class="card" id="insight-card">' + insightHtml + '</div>' +
+
+    '<h2>Production Runs</h2>' +
+    '<div class="card">' +
+      '<div class="tbl-scroll">' +
+        '<table>' +
+          '<thead><tr>' +
+            '<th class="sortable" data-sort="text">Date</th>' +
+            '<th class="sortable" data-sort="text">Line</th>' +
+            '<th class="sortable" data-sort="text">Product Category</th>' +
+            '<th class="sortable" data-sort="text">SKU</th>' +
+            '<th class="sortable num">Units</th>' +
+            '<th class="sortable num">Run Hours</th>' +
+            '<th class="sortable num">Operators</th>' +
+            '<th class="sortable num">Units/Machine-Hr</th>' +
+            '<th class="sortable num">Units/Operator-Hr</th>' +
+            '<th class="sortable num">Efficiency</th>' +
+          '</tr></thead>' +
+          '<tbody id="runs-tbody"></tbody>' +
+        '</table>' +
+      '</div>' +
+      '<div class="note">Showing up to 60 most recent runs for the selected year and line. Click a column header to sort.</div>' +
+    '</div>' +
+
+    '<div class="note">All figures on this page — units, run hours, staffing and utilization — are synthetic and ' +
+    'seeded for reproducibility. Northvale Beverage Co., its packing lines and equipment names are fictional.</div>';
+
+  // 1) chrome first
+  PF.chrome('production-throughput.html');
+
+  // 2) render main
+  document.getElementById('app').innerHTML = mainHtml;
+  PF.applyChartDefaults();
+
+  var chart1 = null, chart2 = null, chart3 = null;
+
+  function render() {
+    var year = document.getElementById('yearSel').value;
+    var lineSel = document.getElementById('lineSel').value;
+    var basisSel = PF.segValue('basis') || 'mhr';
+    var periodSel = PF.segValue('period') || 'monthly';
+
+    var curAgg = aggregate(filterRuns(year, lineSel));
+    var curUtil = avgUtilization(year, lineSel);
+
+    var priorIdx = YEARS.indexOf(year) - 1;
+    var priorAgg = null, priorUtil = null;
+    if (priorIdx >= 0) {
+      priorAgg = aggregate(filterRuns(YEARS[priorIdx], lineSel));
+      priorUtil = avgUtilization(YEARS[priorIdx], lineSel);
+    }
+
+    document.getElementById('kpi-total-units').textContent = PF.numK(curAgg.units);
+    document.getElementById('kpi-total-units-dlt').innerHTML = PF.delta(pctChange(curAgg.units, priorAgg && priorAgg.units));
+    document.getElementById('kpi-mhr').textContent = PF.num(curAgg.mhrRate, 0);
+    document.getElementById('kpi-mhr-dlt').innerHTML = PF.delta(pctChange(curAgg.mhrRate, priorAgg && priorAgg.mhrRate));
+    document.getElementById('kpi-ohr').textContent = PF.num(curAgg.ohrRate, 0);
+    document.getElementById('kpi-ohr-dlt').innerHTML = PF.delta(pctChange(curAgg.ohrRate, priorAgg && priorAgg.ohrRate));
+    document.getElementById('kpi-avgrun').textContent = PF.num(curAgg.avgRunSize, 0);
+    document.getElementById('kpi-avgrun-dlt').innerHTML = PF.delta(pctChange(curAgg.avgRunSize, priorAgg && priorAgg.avgRunSize));
+    document.getElementById('kpi-util').textContent = PF.pct(curUtil, 1);
+    document.getElementById('kpi-util-dlt').innerHTML = PF.delta(priorAgg ? curUtil - priorUtil : null);
+    document.getElementById('kpi-runs').textContent = PF.num(curAgg.runs, 0);
+    document.getElementById('kpi-runs-dlt').innerHTML = PF.delta(pctChange(curAgg.runs, priorAgg && priorAgg.runs));
+
+    document.getElementById('chart1-title').textContent = 'Throughput Over Time by Line — ' + BASIS_LABEL[basisSel];
+    document.getElementById('chart2-title').textContent = 'Throughput by Line — ' + BASIS_LABEL[basisSel];
+    document.getElementById('chart3-title').textContent = 'Units by Product Category per ' + (periodSel === 'monthly' ? 'Month' : 'Quarter');
+
+    var colors = PF.colors();
+    var axis = function () { return { grid: { color: colors.line }, ticks: { color: colors.muted } }; };
+
+    var d1 = chart1Data(year, lineSel, basisSel, periodSel);
+    if (chart1) chart1.destroy();
+    chart1 = new Chart(document.getElementById('chart1').getContext('2d'), {
+      type: 'line',
+      data: d1,
+      options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        scales: {
+          x: axis(),
+          y: Object.assign(axis(), { title: { display: true, text: BASIS_LABEL[basisSel], color: colors.muted } })
+        },
+        plugins: { legend: { display: true } }
+      }
+    });
+
+    var d2 = chart2Data(year, lineSel, basisSel);
+    if (chart2) chart2.destroy();
+    chart2 = new Chart(document.getElementById('chart2').getContext('2d'), {
+      type: 'bar',
+      data: d2,
+      options: {
+        indexAxis: 'y',
+        responsive: true,
+        scales: { x: axis(), y: axis() },
+        plugins: { legend: { display: false } }
+      }
+    });
+
+    var d3 = chart3Data(year, lineSel, periodSel);
+    if (chart3) chart3.destroy();
+    chart3 = new Chart(document.getElementById('chart3').getContext('2d'), {
+      type: 'bar',
+      data: d3,
+      options: {
+        responsive: true,
+        scales: {
+          x: Object.assign(axis(), { stacked: true }),
+          y: Object.assign(axis(), { stacked: true })
+        },
+        plugins: { legend: { display: true } }
+      }
+    });
+
+    document.getElementById('runs-tbody').innerHTML = buildTableRows(year, lineSel);
+    PF.initSort(document.getElementById('app'));
+  }
+
+  document.getElementById('yearSel').addEventListener('change', render);
+  document.getElementById('lineSel').addEventListener('change', render);
+  PF.initSeg(document.getElementById('app'), render);
+  render();
+
+  // 3) footer last
+  PF.foot();
+})();
+</script>
+</body>
+</html>

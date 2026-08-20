@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Marketing KPIs — Justin Adler Portfolio</title>
+<link rel="stylesheet" href="assets/portfolio.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="assets/portfolio.js"></script>
+</head>
+<body>
+<main id="app"></main>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Static shell: chrome first, then main content, foot last ─────────────
+  PF.chrome('mtd-kpi.html');
+
+  var app = document.getElementById('app');
+  app.innerHTML =
+    PF.crumbs('Marketing KPIs') +
+    '<h1>Marketing KPIs</h1>' +
+    '<p class="sub">Month-to-date executive view of the DTC channel: revenue, orders, AOV, conversion, ' +
+    'sessions, new-vs-returning mix, and channel attribution. Pick a month and a pacing view — every ' +
+    'number and chart below re-computes for that selection.</p>' +
+
+    '<div class="controls">' +
+      '<select id="monthSel" aria-label="Select month"></select>' +
+      '<div class="seg" data-seg="pacing">' +
+        '<button data-v="mtd" aria-pressed="true">MTD (through day 19)</button>' +
+        '<button data-v="full" aria-pressed="false">Full month</button>' +
+      '</div>' +
+    '</div>' +
+
+    '<div class="grid g4" id="kpiGrid"></div>' +
+
+    '<h2>Daily Revenue Pace</h2>' +
+    '<div class="card">' +
+      '<div class="chart-wrap tall"><canvas id="chartDaily"></canvas></div>' +
+      '<div class="note" id="dailyNote"></div>' +
+    '</div>' +
+
+    '<h2>Revenue by Channel — Trailing 12 Months</h2>' +
+    '<div class="card">' +
+      '<div class="chart-wrap tall"><canvas id="chartChannel"></canvas></div>' +
+    '</div>' +
+
+    '<div class="grid g2">' +
+      '<div class="card">' +
+        '<h2>New vs Returning Revenue</h2>' +
+        '<div class="chart-wrap"><canvas id="chartNewRet"></canvas></div>' +
+        '<div class="legend" id="newRetLegend"></div>' +
+      '</div>' +
+      '<div class="card">' +
+        '<h3>Pacing summary</h3>' +
+        '<div id="paceSummary"></div>' +
+      '</div>' +
+    '</div>' +
+
+    '<h2>Top 10 Products — Selected Month</h2>' +
+    '<div class="card">' +
+      '<div class="tbl-scroll">' +
+        '<table id="productTable">' +
+          '<thead><tr>' +
+            '<th class="sortable" data-sort="text">Product</th>' +
+            '<th class="sortable num" data-sort="num">Units</th>' +
+            '<th class="sortable num" data-sort="num">Net Revenue</th>' +
+            '<th class="sortable num" data-sort="num">AOV Contribution</th>' +
+            '<th class="sortable num" data-sort="num">% of Revenue</th>' +
+            '<th class="sortable num" data-sort="num">YoY</th>' +
+          '</tr></thead>' +
+          '<tbody id="productBody"></tbody>' +
+        '</table>' +
+      '</div>' +
+      '<p class="note">All figures on this page are synthetic, generated deterministically for this ' +
+      'portfolio demo, and do not reflect actual Teeccino financial results.</p>' +
+    '</div>';
+
+  // ── Deterministic synthetic-data model ────────────────────────────────────
+  // "Today" for this demo is fixed at Aug 19, 2026 — MTD always compares each
+  // month through its 19th calendar day so different months are apples-to-apples.
+  var MTD_DAY = 19;
+  var TARGET_GROWTH = 0.15; // company pace-to-target growth assumption
+
+  var MONTH_LIST = [];
+  (function buildMonths() {
+    for (var y = 2025; y <= 2026; y++) {
+      var mEnd = (y === 2026) ? 7 : 11; // through Aug 2026
+      for (var m = 0; m <= mEnd; m++) MONTH_LIST.push({ y: y, m: m });
+    }
+  })();
+
+  var ANNUAL_FACTOR = { 2024: 1.00, 2025: 1.19, 2026: 1.357 };
+  // Normalized seasonality weight per calendar month (Jan..Dec), avg ≈ 1.0
+  var NORM_WEIGHT = [0.986, 0.882, 0.934, 0.913, 0.882, 0.810, 0.778, 0.830, 1.090, 1.194, 1.401, 1.297];
+
+  var CHANNELS = ['Direct', 'Paid Search', 'Paid Social', 'Email/SMS', 'Organic Search', 'Affiliate', 'Referral'];
+  var BASE_SHARE = [0.22, 0.18, 0.20, 0.15, 0.14, 0.06, 0.05];
+
+  var PRODUCTS = [
+    { name: 'French Roast',        share: 0.110, price: 15 },
+    { name: 'Java',                share: 0.090, price: 14 },
+    { name: 'Original',            share: 0.080, price: 13 },
+    { name: 'Vanilla Nut',         share: 0.080, price: 16 },
+    { name: 'Mocha',               share: 0.070, price: 16 },
+    { name: 'Hazelnut',            share: 0.065, price: 15 },
+    { name: 'Chocolate Mint',      share: 0.060, price: 17 },
+    { name: 'Maya Chai',           share: 0.055, price: 18 },
+    { name: 'Dandelion Caramel Nut', share: 0.050, price: 17 },
+    { name: 'Almond Amaretto',     share: 0.045, price: 18 }
+  ];
+
+  function seedFor(year, monthIdx, salt) { return (year * 10000 + monthIdx * 100 + salt) >>> 0; }
+  function daysInMonth(year, monthIdx) { return new Date(year, monthIdx + 1, 0).getDate(); }
+  function pctDelta(cur, prev) { return prev ? ((cur - prev) / prev) * 100 : 0; }
+  function monthLabel(year, monthIdx) { return PF.MONTHS[monthIdx] + ' ' + year; }
+  function monthLabelShort(year, monthIdx) { return PF.MONTHS[monthIdx] + " '" + String(year).slice(2); }
+
+  function monthTotal(year, monthIdx) {
+    var norm = NORM_WEIGHT[monthIdx];
+    var factor = ANNUAL_FACTOR[year] || ANNUAL_FACTOR[2026];
+    var rnd = PF.rng(seedFor(year, monthIdx, 11));
+    return 150000 * norm * factor * (1 + 0.08 * PF.jitter(rnd));
+  }
+
+  function dailySeries(year, monthIdx, total) {
+    var n = daysInMonth(year, monthIdx);
+    var rnd = PF.rng(seedFor(year, monthIdx, 21));
+    var weights = [];
+    for (var d = 1; d <= n; d++) {
+      var dow = new Date(year, monthIdx, d).getDay();
+      var wk = (dow === 0 || dow === 6) ? 0.75 : 1.05;
+      var j = 1 + 0.18 * PF.jitter(rnd);
+      weights.push(Math.max(0.3, wk * j));
+    }
+    var sum = weights.reduce(function (a, b) { return a + b; }, 0);
+    return weights.map(function (w) { return total * w / sum; });
+  }
+
+  function cumulative(arr) {
+    var out = [], s = 0;
+    for (var i = 0; i < arr.length; i++) { s += arr[i]; out.push(s); }
+    return out;
+  }
+
+  function rangeRevenue(year, monthIdx, dayEnd) {
+    var series = dailySeries(year, monthIdx, monthTotal(year, monthIdx));
+    var n = Math.min(dayEnd, series.length);
+    var sum = 0;
+    for (var i = 0; i < n; i++) sum += series[i];
+    return sum;
+  }
+
+  function metricsFor(year, monthIdx, dayEnd) {
+    var revenue = rangeRevenue(year, monthIdx, dayEnd);
+    var holidayBoost = (monthIdx >= 9) ? 1.08 : 1.0; // Oct, Nov, Dec
+    var rndAov = PF.rng(seedFor(year, monthIdx, 31));
+    var aov = 54 * holidayBoost * (1 + 0.06 * PF.jitter(rndAov));
+    var orders = revenue / aov;
+    var rndConv = PF.rng(seedFor(year, monthIdx, 41));
+    var conv = 2.55 + 0.5 * PF.jitter(rndConv);
+    var sessions = orders / (conv / 100);
+    var rndNew = PF.rng(seedFor(year, monthIdx, 51));
+    var newShare = 0.60 + 0.05 * PF.jitter(rndNew);
+    var newCustomers = orders * newShare;
+    var rndRepeat = PF.rng(seedFor(year, monthIdx, 61));
+    var repeatPct = 34 + 5 * PF.jitter(rndRepeat);
+    var rndMer = PF.rng(seedFor(year, monthIdx, 71));
+    var mer = 3.2 + 0.7 * PF.jitter(rndMer);
+    return { revenue: revenue, orders: orders, aov: aov, conv: conv, sessions: sessions,
+      newCustomers: newCustomers, repeatPct: repeatPct, mer: mer };
+  }
+
+  function channelSplit(year, monthIdx) {
+    var total = monthTotal(year, monthIdx);
+    var shares = BASE_SHARE.map(function (s, idx) {
+      var rnd = PF.rng(seedFor(year, monthIdx, 100 + idx));
+      return Math.max(0.01, s * (1 + 0.15 * PF.jitter(rnd)));
+    });
+    var sumShares = shares.reduce(function (a, b) { return a + b; }, 0);
+    return shares.map(function (s) { return total * (s / sumShares); });
+  }
+
+  function last12(year, monthIdx) {
+    var arr = [], y = year, m = monthIdx;
+    for (var i = 0; i < 12; i++) {
+      arr.unshift({ y: y, m: m });
+      m--; if (m < 0) { m = 11; y--; }
+    }
+    return arr;
+  }
+
+  function productRows(year, monthIdx, dayEnd) {
+    var totalRevenue = rangeRevenue(year, monthIdx, dayEnd);
+    var totalOrders = metricsFor(year, monthIdx, dayEnd).orders;
+    return PRODUCTS.map(function (p, idx) {
+      var rnd = PF.rng(seedFor(year, monthIdx, 200 + idx));
+      var revenue = totalRevenue * p.share * (1 + 0.12 * PF.jitter(rnd));
+      var units = revenue / p.price;
+      var rndPrev = PF.rng(seedFor(year - 1, monthIdx, 200 + idx));
+      var prevTotal = rangeRevenue(year - 1, monthIdx, dayEnd);
+      var prevRevenue = prevTotal * p.share * (1 + 0.12 * PF.jitter(rndPrev));
+      return {
+        name: p.name,
+        units: units,
+        revenue: revenue,
+        aovContribution: totalOrders ? revenue / totalOrders : 0,
+        pctOfRevenue: totalRevenue ? (revenue / totalRevenue) * 100 : 0,
+        yoy: pctDelta(revenue, prevRevenue)
+      };
+    });
+  }
+
+  // ── Populate month select ──────────────────────────────────────────────────
+  var sel = document.getElementById('monthSel');
+  sel.innerHTML = MONTH_LIST.map(function (mo, i) {
+    return '<option value="' + i + '">' + monthLabel(mo.y, mo.m) + '</option>';
+  }).join('');
+  sel.value = String(MONTH_LIST.length - 1); // default Aug 2026
+
+  // ── Chart instances (destroy/recreate on each render) ───────────────────────
+  var chartDaily = null, chartChannel = null, chartNewRet = null;
+
+  function renderAll() {
+    var mo = MONTH_LIST[Number(sel.value)];
+    var year = mo.y, monthIdx = mo.m;
+    var pacing = PF.segValue('pacing') || 'mtd';
+    var nDays = daysInMonth(year, monthIdx);
+    var dayEnd = (pacing === 'mtd') ? Math.min(MTD_DAY, nDays) : nDays;
+
+    var cur = metricsFor(year, monthIdx, dayEnd);
+    var prev = metricsFor(year - 1, monthIdx, dayEnd);
+
+    renderKpis(cur, prev);
+    renderDailyChart(year, monthIdx, dayEnd, cur, pacing);
+    renderChannelChart(year, monthIdx);
+    renderNewRetChart(cur);
+    renderPaceSummary(year, monthIdx, dayEnd, cur, pacing);
+    renderProductTable(year, monthIdx, dayEnd);
+  }
+
+  function renderKpis(cur, prev) {
+    var defs = [
+      { label: 'Net Revenue',       val: PF.usd(cur.revenue, 0),      delta: pctDelta(cur.revenue, prev.revenue) },
+      { label: 'Orders',            val: PF.num(Math.round(cur.orders), 0), delta: pctDelta(cur.orders, prev.orders) },
+      { label: 'AOV',               val: PF.usd(cur.aov, 2),          delta: pctDelta(cur.aov, prev.aov) },
+      { label: 'Conversion Rate',   val: PF.pct(cur.conv, 2),         delta: pctDelta(cur.conv, prev.conv) },
+      { label: 'Sessions',          val: PF.numK(cur.sessions),       delta: pctDelta(cur.sessions, prev.sessions) },
+      { label: 'New Customers',     val: PF.num(Math.round(cur.newCustomers), 0), delta: pctDelta(cur.newCustomers, prev.newCustomers) },
+      { label: 'Repeat Revenue %',  val: PF.pct(cur.repeatPct, 1),    delta: pctDelta(cur.repeatPct, prev.repeatPct) },
+      { label: 'Blended MER',       val: PF.num(cur.mer, 2) + 'x',    delta: pctDelta(cur.mer, prev.mer) }
+    ];
+    document.getElementById('kpiGrid').innerHTML = defs.map(function (d) {
+      return '<div class="kpi"><div class="lbl">' + d.label + '</div>' +
+        '<div class="val">' + d.val + '</div>' +
+        '<div class="dlt">' + PF.delta(d.delta, 1) + ' YoY</div></div>';
+    }).join('');
+  }
+
+  function renderDailyChart(year, monthIdx, dayEnd, cur, pacing) {
+    var c = PF.colors();
+    var nDays = daysInMonth(year, monthIdx);
+    var lyYear = year - 1, lyDays = daysInMonth(lyYear, monthIdx);
+    var maxDays = Math.max(nDays, lyDays);
+
+    var curSeries = cumulative(dailySeries(year, monthIdx, monthTotal(year, monthIdx)));
+    var lySeries = cumulative(dailySeries(lyYear, monthIdx, monthTotal(lyYear, monthIdx)));
+
+    var curData = [], lyData = [], paceData = [];
+    var target = monthTotal(lyYear, monthIdx) * (1 + TARGET_GROWTH);
+    for (var i = 0; i < maxDays; i++) {
+      curData.push(i < dayEnd && i < curSeries.length ? curSeries[i] : null);
+      lyData.push(i < lySeries.length ? lySeries[i] : null);
+      paceData.push(target * (i + 1) / nDays);
+    }
+    var labels = [];
+    for (var d = 1; d <= maxDays; d++) labels.push('Day ' + d);
+
+    if (chartDaily) chartDaily.destroy();
+    chartDaily = new Chart(document.getElementById('chartDaily').getContext('2d'), {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          { label: monthLabel(year, monthIdx) + ' (cumulative)', data: curData, borderColor: c.accent,
+            backgroundColor: c.accent, pointRadius: 0, borderWidth: 2, spanGaps: false, tension: 0.25 },
+          { label: monthLabel(lyYear, monthIdx) + ' (cumulative)', data: lyData, borderColor: c.muted,
+            backgroundColor: c.muted, pointRadius: 0, borderWidth: 2, spanGaps: false, tension: 0.25 },
+          { label: 'Pace to target', data: paceData, borderColor: c.warn, backgroundColor: c.warn,
+            borderDash: [6, 4], pointRadius: 0, borderWidth: 1.5, tension: 0 }
+        ]
+      },
+      options: {
+        interaction: { mode: 'index', intersect: false },
+        scales: {
+          x: { grid: { color: c.line }, ticks: { color: c.muted, maxTicksLimit: 10 } },
+          y: { grid: { color: c.line }, ticks: { color: c.muted, callback: function (v) { return PF.usdK(v); } }, beginAtZero: true }
+        },
+        plugins: { legend: { position: 'bottom' },
+          tooltip: { callbacks: { label: function (ctx) {
+            return ctx.dataset.label + ': ' + PF.usd(ctx.parsed.y, 0);
+          } } } }
+      }
+    });
+
+    document.getElementById('dailyNote').textContent =
+      'MTD compares each month through calendar day ' + MTD_DAY + '; Full month shows the entire ' +
+      (pacing === 'mtd' ? 'month for context (line continues past the MTD marker for last year).' : 'month.') +
+      ' Target pace assumes ' + Math.round(TARGET_GROWTH * 100) + '% growth over last year’s full-month total.';
+  }
+
+  function renderChannelChart(year, monthIdx) {
+    var c = PF.colors(), series = PF.series();
+    var months = last12(year, monthIdx);
+    var labels = months.map(function (mo) { return monthLabelShort(mo.y, mo.m); });
+    var datasets = CHANNELS.map(function (ch, idx) {
+      return {
+        label: ch,
+        data: months.map(function (mo) { return channelSplit(mo.y, mo.m)[idx]; }),
+        backgroundColor: series[idx % series.length],
+        stack: 'rev'
+      };
+    });
+    if (chartChannel) chartChannel.destroy();
+    chartChannel = new Chart(document.getElementById('chartChannel').getContext('2d'), {
+      type: 'bar',
+      data: { labels: labels, datasets: datasets },
+      options: {
+        scales: {
+          x: { stacked: true, grid: { display: false }, ticks: { color: c.muted } },
+          y: { stacked: true, grid: { color: c.line }, ticks: { color: c.muted, callback: function (v) { return PF.usdK(v); } } }
+        },
+        plugins: { legend: { position: 'bottom' },
+          tooltip: { callbacks: { label: function (ctx) {
+            return ctx.dataset.label + ': ' + PF.usd(ctx.parsed.y, 0);
+          } } } }
+      }
+    });
+  }
+
+  function renderNewRetChart(cur) {
+    var series = PF.series();
+    var newPct = 100 - cur.repeatPct, retPct = cur.repeatPct;
+    if (chartNewRet) chartNewRet.destroy();
+    chartNewRet = new Chart(document.getElementById('chartNewRet').getContext('2d'), {
+      type: 'doughnut',
+      data: {
+        labels: ['New customer revenue', 'Returning customer revenue'],
+        datasets: [{ data: [newPct, retPct], backgroundColor: [series[0], series[2]], borderWidth: 0 }]
+      },
+      options: {
+        plugins: { legend: { display: false },
+          tooltip: { callbacks: { label: function (ctx) { return ctx.label + ': ' + PF.pct(ctx.parsed, 1); } } } }
+      }
+    });
+    document.getElementById('newRetLegend').innerHTML =
+      '<span><i style="background:' + series[0] + '"></i>New — ' + PF.pct(newPct, 1) + '</span>' +
+      '<span><i style="background:' + series[2] + '"></i>Returning — ' + PF.pct(retPct, 1) + '</span>';
+  }
+
+  function renderPaceSummary(year, monthIdx, dayEnd, cur, pacing) {
+    var nDays = daysInMonth(year, monthIdx);
+    var target = monthTotal(year - 1, monthIdx) * (1 + TARGET_GROWTH);
+    var runRateFull = cur.revenue * (nDays / dayEnd);
+    var vsTargetPct = pctDelta(runRateFull, target);
+    var html =
+      '<div class="grid g2">' +
+        '<div><div class="note">Days counted</div><div class="num" style="text-align:left;font-weight:600">' + dayEnd + ' of ' + nDays + '</div></div>' +
+        '<div><div class="note">Revenue to date</div><div class="num" style="text-align:left;font-weight:600">' + PF.usd(cur.revenue, 0) + '</div></div>' +
+        '<div><div class="note">Run-rate full-month projection</div><div class="num" style="text-align:left;font-weight:600">' + PF.usd(runRateFull, 0) + '</div></div>' +
+        '<div><div class="note">Full-month target</div><div class="num" style="text-align:left;font-weight:600">' + PF.usd(target, 0) + '</div></div>' +
+      '</div>' +
+      '<p class="note">Projection vs. target: ' + PF.delta(vsTargetPct, 1) + ' (' +
+      (pacing === 'mtd' ? 'extrapolated from the MTD run-rate' : 'based on the completed month') + ').</p>';
+    document.getElementById('paceSummary').innerHTML = html;
+  }
+
+  function renderProductTable(year, monthIdx, dayEnd) {
+    var rows = productRows(year, monthIdx, dayEnd);
+    document.getElementById('productBody').innerHTML = rows.map(function (r) {
+      var pillClass = r.yoy > 5 ? 'good' : (r.yoy < -5 ? 'bad' : 'mute');
+      return '<tr>' +
+        '<td>' + r.name + '</td>' +
+        '<td class="num" data-v="' + r.units + '">' + PF.num(Math.round(r.units), 0) + '</td>' +
+        '<td class="num" data-v="' + r.revenue + '">' + PF.usd(r.revenue, 0) + '</td>' +
+        '<td class="num" data-v="' + r.aovContribution + '">' + PF.usd(r.aovContribution, 2) + '</td>' +
+        '<td class="num" data-v="' + r.pctOfRevenue + '">' +
+          '<div class="bar-mini" style="display:inline-block;width:54px;vertical-align:middle;margin-right:8px"><i style="width:' + Math.min(100, r.pctOfRevenue * 4) + '%"></i></div>' +
+          PF.pct(r.pctOfRevenue, 1) +
+        '</td>' +
+        '<td class="num" data-v="' + r.yoy + '"><span class="pill ' + pillClass + '">' + PF.delta(r.yoy, 1) + '</span></td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  // ── Wire up controls, apply chart defaults, first render ───────────────────
+  PF.applyChartDefaults();
+  sel.addEventListener('change', renderAll);
+  PF.initSeg(document, renderAll);
+  PF.initSort(document.getElementById('productTable'));
+
+  renderAll();
+
+  PF.foot();
+})();
+</script>
+</body>
+</html>

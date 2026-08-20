@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>2-Year Customer LTV · Justin Adler Portfolio</title>
+<link rel="stylesheet" href="assets/portfolio.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="assets/portfolio.js"></script>
+</head>
+<body>
+<script>PF.chrome('ltv-2year.html');</script>
+
+<main>
+<script>document.write(PF.crumbs('2-Year LTV'));</script>
+
+<h1>2-Year Customer LTV</h1>
+<p class="sub">Monthly acquisition cohorts tracked to 24 months: cumulative revenue per customer, retention curves, and LTV:CAC by acquisition channel.</p>
+
+<div class="controls">
+  <div class="seg" data-seg="cohortMetric">
+    <button data-v="ltv" aria-pressed="true">Cumulative LTV</button>
+    <button data-v="retention" aria-pressed="false">Retention %</button>
+    <button data-v="orders" aria-pressed="false">Orders / Customer</button>
+    <button data-v="aov" aria-pressed="false">AOV</button>
+  </div>
+  <select id="channelSelect">
+    <option value="all">All Channels</option>
+    <option value="paid-social">Paid Social</option>
+    <option value="paid-search">Paid Search</option>
+    <option value="organic">Organic</option>
+    <option value="email">Email</option>
+    <option value="affiliate">Affiliate</option>
+  </select>
+</div>
+
+<div class="grid g3" id="kpiGrid"></div>
+
+<h2>Cohort Heatmap</h2>
+<div class="card">
+  <div class="tbl-scroll">
+    <table id="heatmapTable"></table>
+  </div>
+  <div class="legend" id="heatmapLegend"></div>
+  <p class="note">Blank cells are cohorts that have not yet reached that month of tenure. Color intensity is scaled to the currently selected metric and channel.</p>
+</div>
+
+<h2>Cumulative Value by Cohort</h2>
+<div class="card">
+  <div class="chart-wrap"><canvas id="chartCohorts"></canvas></div>
+  <p class="note">Six representative acquisition cohorts, spaced four months apart. Lines stop where a cohort's observed history ends.</p>
+</div>
+
+<h2>Retention by Acquisition Channel</h2>
+<div class="card">
+  <div class="chart-wrap"><canvas id="chartRetention"></canvas></div>
+  <p class="note">Modeled percentage of each channel's cohort still placing orders, by month since first purchase.</p>
+</div>
+
+<h2>LTV:CAC by Acquisition Channel</h2>
+<div class="card">
+  <div class="chart-wrap"><canvas id="chartRatio"></canvas></div>
+  <p class="note">Dashed lines mark break-even (1.0x) and the generally accepted healthy threshold (3.0x). Ratio uses each channel's own 24-month LTV against its own CAC.</p>
+</div>
+
+<p class="note">All figures on this page are synthetic, generated with a seeded random function for demonstration only. They do not represent actual Teeccino performance, customers, or spend.</p>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Channel model parameters (all synthetic) ──────────────────────────────
+  var CHANNELS = {
+    'paid-social': { label: 'Paid Social', share: 0.32, cac: 38.40,
+      ltv24: 174, ltvSlope: 0.42, ltvTau: 5.5,
+      ord24: 3.3, ordSlope: 0.010, ordTau: 6.2,
+      retFloor: 16, retTau: 4.6,
+      aovBase: 31, aovDrift: 0.05, seed: 10101 },
+    'paid-search': { label: 'Paid Search', share: 0.24, cac: 45.10,
+      ltv24: 203, ltvSlope: 0.60, ltvTau: 5.0,
+      ord24: 3.9, ordSlope: 0.015, ordTau: 5.6,
+      retFloor: 21, retTau: 5.1,
+      aovBase: 34, aovDrift: 0.06, seed: 20202 },
+    'organic': { label: 'Organic', share: 0.20, cac: 18.50,
+      ltv24: 251, ltvSlope: 0.95, ltvTau: 4.5,
+      ord24: 4.7, ordSlope: 0.022, ordTau: 5.0,
+      retFloor: 31, retTau: 6.2,
+      aovBase: 33, aovDrift: 0.05, seed: 30303 },
+    'email': { label: 'Email', share: 0.09, cac: 21.00,
+      ltv24: 297, ltvSlope: 1.20, ltvTau: 4.0,
+      ord24: 5.6, ordSlope: 0.028, ordTau: 4.4,
+      retFloor: 39, retTau: 7.1,
+      aovBase: 35, aovDrift: 0.07, seed: 40404 },
+    'affiliate': { label: 'Affiliate', share: 0.15, cac: 53.60,
+      ltv24: 189, ltvSlope: 0.48, ltvTau: 5.3,
+      ord24: 3.5, ordSlope: 0.012, ordTau: 5.9,
+      retFloor: 18, retTau: 4.9,
+      aovBase: 32, aovDrift: 0.04, seed: 50505 }
+  };
+  var CHANNEL_KEYS = Object.keys(CHANNELS);
+
+  // ── Curve builders ─────────────────────────────────────────────────────────
+  function rampCurve(target, slope, tau) {
+    var denom = 1 - Math.exp(-24 / tau);
+    var a = (target - slope * 23) / denom;
+    var arr = [];
+    for (var m = 0; m < 24; m++) { arr.push(a * (1 - Math.exp(-(m + 1) / tau)) + slope * m); }
+    return arr;
+  }
+  function retentionCurve(p) {
+    var arr = [];
+    for (var m = 0; m < 24; m++) { arr.push(p.retFloor + (100 - p.retFloor) * Math.exp(-m / p.retTau)); }
+    return arr;
+  }
+  function aovCurve(p, rnd) {
+    var arr = [];
+    for (var m = 0; m < 24; m++) { arr.push(p.aovBase + p.aovDrift * m + PF.jitter(rnd) * 0.6); }
+    return arr;
+  }
+
+  function buildChannelModel(key) {
+    var p = CHANNELS[key];
+    var rnd = PF.rng(p.seed);
+    var base = {
+      ltv: rampCurve(p.ltv24, p.ltvSlope, p.ltvTau),
+      orders: rampCurve(p.ord24, p.ordSlope, p.ordTau),
+      retention: retentionCurve(p),
+      aov: aovCurve(p, rnd)
+    };
+    var cohorts = [];
+    for (var i = 0; i < 24; i++) {
+      var cRnd = PF.rng(p.seed + i * 7 + 1);
+      var mult = 1 + PF.jitter(cRnd) * 0.09;
+      var row = { ltv: [], orders: [], retention: [], aov: [] };
+      for (var m = 0; m < 24; m++) {
+        var noise = 1 + PF.jitter(cRnd) * 0.03;
+        row.ltv.push(base.ltv[m] * mult * noise);
+        row.orders.push(Math.max(0, base.orders[m] * mult * noise));
+        row.retention.push(Math.min(100, Math.max(0, base.retention[m] * mult * noise)));
+        row.aov.push(base.aov[m] * (1 + (mult - 1) * 0.4));
+      }
+      cohorts.push(row);
+    }
+    return { p: p, base: base, cohorts: cohorts };
+  }
+
+  var MODELS = {};
+  CHANNEL_KEYS.forEach(function (k) { MODELS[k] = buildChannelModel(k); });
+
+  var BLENDED_BASE = { ltv: [], orders: [], retention: [], aov: [] };
+  for (var m0 = 0; m0 < 24; m0++) {
+    var l = 0, o = 0, r = 0, a = 0;
+    CHANNEL_KEYS.forEach(function (k) {
+      var w = CHANNELS[k].share, b = MODELS[k].base;
+      l += w * b.ltv[m0]; o += w * b.orders[m0]; r += w * b.retention[m0]; a += w * b.aov[m0];
+    });
+    BLENDED_BASE.ltv.push(l); BLENDED_BASE.orders.push(o); BLENDED_BASE.retention.push(r); BLENDED_BASE.aov.push(a);
+  }
+  var BLENDED_CAC = CHANNEL_KEYS.reduce(function (sum, k) { return sum + CHANNELS[k].share * CHANNELS[k].cac; }, 0);
+
+  function blendedCohortRow(i) {
+    var row = { ltv: [], orders: [], retention: [], aov: [] };
+    for (var m = 0; m < 24; m++) {
+      var l = 0, o = 0, r = 0, a = 0;
+      CHANNEL_KEYS.forEach(function (k) {
+        var w = CHANNELS[k].share, c = MODELS[k].cohorts[i];
+        l += w * c.ltv[m]; o += w * c.orders[m]; r += w * c.retention[m]; a += w * c.aov[m];
+      });
+      row.ltv.push(l); row.orders.push(o); row.retention.push(r); row.aov.push(a);
+    }
+    return row;
+  }
+  var BLENDED_COHORTS = [];
+  for (var i0 = 0; i0 < 24; i0++) { BLENDED_COHORTS.push(blendedCohortRow(i0)); }
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function cohortLabel(i) {
+    var idx = (8 + i) % 12;
+    var year = 2024 + Math.floor((8 + i) / 12);
+    return PF.MONTHS[idx] + ' ' + year;
+  }
+  function elapsedOf(i) { return 23 - i; }
+  function cohortsFor(channelKey) { return channelKey === 'all' ? BLENDED_COHORTS : MODELS[channelKey].cohorts; }
+  function baseFor(channelKey) { return channelKey === 'all' ? BLENDED_BASE : MODELS[channelKey].base; }
+  function cacFor(channelKey) { return channelKey === 'all' ? BLENDED_CAC : CHANNELS[channelKey].cac; }
+  function channelLabel(channelKey) { return channelKey === 'all' ? 'All Channels' : CHANNELS[channelKey].label; }
+
+  function hexToRgb(hex) {
+    hex = (hex || '').replace('#', '');
+    if (hex.length === 3) { hex = hex.split('').map(function (c) { return c + c; }).join(''); }
+    var n = parseInt(hex, 16) || 0;
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+  }
+  function mixRgb(c1, c2, t) {
+    return { r: c1.r + (c2.r - c1.r) * t, g: c1.g + (c2.g - c1.g) * t, b: c1.b + (c2.b - c1.b) * t };
+  }
+  function luminance(c) { return 0.299 * c.r + 0.587 * c.g + 0.114 * c.b; }
+
+  function formatMetric(metric, v) {
+    if (metric === 'ltv') return PF.usd(v, 0);
+    if (metric === 'retention') return PF.pct(v, 0);
+    if (metric === 'orders') return PF.num(v, 1);
+    if (metric === 'aov') return PF.usd(v, 0);
+    return String(v);
+  }
+  function tickFormatter(metric) {
+    return function (v) {
+      if (metric === 'ltv') return PF.usdK(v);
+      if (metric === 'retention') return PF.pct(v, 0);
+      if (metric === 'orders') return PF.num(v, 1);
+      if (metric === 'aov') return PF.usd(v, 0);
+      return String(v);
+    };
+  }
+  var METRIC_TITLES = { ltv: 'Cumulative LTV per Customer', retention: 'Retention %', orders: 'Orders per Customer', aov: 'Average Order Value' };
+
+  function statsFor(channelKey) {
+    var base = baseFor(channelKey);
+    var cac = cacFor(channelKey);
+    var ltv24 = base.ltv[23], ltv12 = base.ltv[11], ltv90 = base.ltv[2];
+    var ratio = ltv24 / cac;
+    var prevT = 0, prevVal = 0, payback = null;
+    for (var m = 0; m < 24; m++) {
+      var t = m + 1, val = base.ltv[m];
+      if (val >= cac) {
+        var frac = (cac - prevVal) / (val - prevVal);
+        payback = prevT + frac * (t - prevT);
+        break;
+      }
+      prevT = t; prevVal = val;
+    }
+    if (payback === null) payback = 24;
+    return { ltv24: ltv24, ltv12: ltv12, ltv90: ltv90, cac: cac, ratio: ratio, payback: payback };
+  }
+
+  // ── KPI tiles ────────────────────────────────────────────────────────────
+  function kpiTile(label, val, note, tone) {
+    tone = tone || 'flat';
+    return '<div class="kpi"><div class="lbl">' + label + '</div><div class="val">' + val + '</div>' +
+      '<div class="dlt ' + tone + '">' + note + '</div></div>';
+  }
+  function renderKPIs(channelKey) {
+    var s = statsFor(channelKey);
+    var chLabel = channelLabel(channelKey);
+    var ratioTone = s.ratio >= 3 ? 'up' : (s.ratio >= 1 ? 'flat' : 'down');
+    var ratioNote = s.ratio >= 3 ? 'Above 3.0x healthy threshold' : (s.ratio >= 1 ? 'Above break-even, below 3.0x target' : 'Below break-even');
+    var html =
+      kpiTile('24-Month LTV', PF.usd(s.ltv24, 2), chLabel) +
+      kpiTile('12-Month LTV', PF.usd(s.ltv12, 2), PF.pct(100 * s.ltv12 / s.ltv24, 0) + ' of 24-mo value') +
+      kpiTile('90-Day LTV', PF.usd(s.ltv90, 2), PF.pct(100 * s.ltv90 / s.ltv24, 0) + ' of 24-mo value') +
+      kpiTile('Blended CAC', PF.usd(BLENDED_CAC, 2), 'Weighted by acquisition share, all channels') +
+      kpiTile('LTV:CAC Ratio', PF.num(s.ratio, 1) + 'x', ratioNote, ratioTone) +
+      kpiTile('Payback Period', PF.num(s.payback, 1) + ' mo', 'CAC basis: ' + chLabel + ' (' + PF.usd(s.cac, 2) + ')');
+    document.getElementById('kpiGrid').innerHTML = html;
+  }
+
+  // ── Heatmap ──────────────────────────────────────────────────────────────
+  function renderHeatmap(channelKey, metricKey) {
+    var cohorts = cohortsFor(channelKey);
+    var colors = PF.colors();
+    var accentRgb = hexToRgb(colors.accent);
+    var cardRgb = hexToRgb(colors.card);
+
+    var values = [];
+    for (var i = 0; i < 24; i++) {
+      var elapsed = elapsedOf(i);
+      for (var m = 0; m <= elapsed; m++) { values.push(cohorts[i][metricKey][m]); }
+    }
+    var min = Math.min.apply(null, values), max = Math.max.apply(null, values);
+    var range = (max - min) || 1;
+
+    var thead = '<thead><tr><th>Cohort</th>';
+    for (var mh = 0; mh < 24; mh++) { thead += '<th class="num">M' + mh + '</th>'; }
+    thead += '</tr></thead>';
+
+    var tbody = '<tbody>';
+    for (var r = 0; r < 24; r++) {
+      var elapsedR = elapsedOf(r);
+      tbody += '<tr><td>' + cohortLabel(r) + '</td>';
+      for (var mc = 0; mc < 24; mc++) {
+        if (mc <= elapsedR) {
+          var v = cohorts[r][metricKey][mc];
+          var t = (v - min) / range;
+          var alpha = 0.08 + 0.82 * t;
+          var mixed = mixRgb(cardRgb, accentRgb, alpha);
+          var textColor = luminance(mixed) < 150 ? '#ffffff' : '#111111';
+          tbody += '<td class="num" style="background:rgba(' + accentRgb.r + ',' + accentRgb.g + ',' + accentRgb.b + ',' + alpha.toFixed(2) + ');color:' + textColor + '">' + formatMetric(metricKey, v) + '</td>';
+        } else {
+          tbody += '<td class="num"></td>';
+        }
+      }
+      tbody += '</tr>';
+    }
+    tbody += '</tbody>';
+    document.getElementById('heatmapTable').innerHTML = thead + tbody;
+
+    document.getElementById('heatmapLegend').innerHTML =
+      '<span><i style="background:rgba(' + accentRgb.r + ',' + accentRgb.g + ',' + accentRgb.b + ',0.10)"></i>Low</span>' +
+      '<span><i style="background:rgba(' + accentRgb.r + ',' + accentRgb.g + ',' + accentRgb.b + ',0.5)"></i>Mid</span>' +
+      '<span><i style="background:rgba(' + accentRgb.r + ',' + accentRgb.g + ',' + accentRgb.b + ',0.9)"></i>High</span>' +
+      '<span><i style="background:transparent;border:1px dashed var(--line)"></i>Not yet observed</span>';
+  }
+
+  // ── Chart 1: cumulative curves by cohort ─────────────────────────────────
+  var chartCohortsInstance = null;
+  var COHORT_SAMPLE = [0, 4, 8, 12, 16, 20];
+  function renderCohortChart(channelKey, metricKey) {
+    var cohorts = cohortsFor(channelKey);
+    var series = PF.series();
+    var labels = [];
+    for (var m = 0; m < 24; m++) { labels.push('M' + m); }
+
+    var datasets = COHORT_SAMPLE.map(function (idx, di) {
+      var elapsed = elapsedOf(idx);
+      var data = [];
+      for (var m2 = 0; m2 < 24; m2++) { data.push(m2 <= elapsed ? cohorts[idx][metricKey][m2] : null); }
+      return {
+        label: cohortLabel(idx),
+        data: data,
+        borderColor: series[di % series.length],
+        backgroundColor: series[di % series.length],
+        borderWidth: 2,
+        pointRadius: 0,
+        tension: 0.3,
+        spanGaps: false
+      };
+    });
+
+    var titleText = METRIC_TITLES[metricKey] + ' by Cohort (' + channelLabel(channelKey) + ')';
+    var fmt = tickFormatter(metricKey);
+
+    if (chartCohortsInstance) {
+      chartCohortsInstance.data.labels = labels;
+      chartCohortsInstance.data.datasets = datasets;
+      chartCohortsInstance.options.plugins.title.text = titleText;
+      chartCohortsInstance.options.scales.y.ticks.callback = function (v) { return fmt(v); };
+      chartCohortsInstance.options.plugins.tooltip.callbacks.label = function (ctx) {
+        return ctx.dataset.label + ': ' + fmt(ctx.parsed.y);
+      };
+      chartCohortsInstance.update();
+      return;
+    }
+
+    var colors = PF.colors();
+    var ctx = document.getElementById('chartCohorts').getContext('2d');
+    chartCohortsInstance = new Chart(ctx, {
+      type: 'line',
+      data: { labels: labels, datasets: datasets },
+      options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          title: { display: true, text: titleText, align: 'start', font: { size: 12.5, weight: '600' }, padding: { bottom: 10 } },
+          tooltip: { callbacks: { label: function (c) { return c.dataset.label + ': ' + fmt(c.parsed.y); } } }
+        },
+        scales: {
+          x: { grid: { color: colors.line }, ticks: { color: colors.muted } },
+          y: { grid: { color: colors.line }, ticks: { color: colors.muted, callback: fmt } }
+        }
+      }
+    });
+  }
+
+  // ── Chart 2: retention by channel (static) ───────────────────────────────
+  function buildRetentionChart() {
+    var colors = PF.colors();
+    var series = PF.series();
+    var labels = [];
+    for (var m = 0; m < 24; m++) { labels.push('M' + m); }
+    var datasets = CHANNEL_KEYS.map(function (key, i) {
+      return {
+        label: CHANNELS[key].label,
+        data: MODELS[key].base.retention,
+        borderColor: series[i % series.length],
+        backgroundColor: series[i % series.length],
+        borderWidth: 2,
+        pointRadius: 0,
+        tension: 0.3
+      };
+    });
+    var ctx = document.getElementById('chartRetention').getContext('2d');
+    new Chart(ctx, {
+      type: 'line',
+      data: { labels: labels, datasets: datasets },
+      options: {
+        responsive: true,
+        interaction: { mode: 'index', intersect: false },
+        plugins: { tooltip: { callbacks: { label: function (c) { return c.dataset.label + ': ' + PF.pct(c.parsed.y, 1); } } } },
+        scales: {
+          x: { grid: { color: colors.line }, ticks: { color: colors.muted } },
+          y: { min: 0, max: 100, grid: { color: colors.line }, ticks: { color: colors.muted, callback: function (v) { return PF.pct(v, 0); } } }
+        }
+      }
+    });
+  }
+
+  // ── Chart 3: LTV:CAC ratio bar with reference lines (static) ─────────────
+  function buildRatioChart() {
+    var colors = PF.colors();
+    var series = PF.series();
+    var labels = CHANNEL_KEYS.map(function (k) { return CHANNELS[k].label; });
+    var data = CHANNEL_KEYS.map(function (k) { return MODELS[k].base.ltv[23] / CHANNELS[k].cac; });
+
+    var refLinesPlugin = {
+      id: 'refLines',
+      afterDraw: function (chart) {
+        var yScale = chart.scales.y, xScale = chart.scales.x;
+        var ctx = chart.ctx;
+        var c = PF.colors();
+        function drawLine(value, color, label) {
+          var y = yScale.getPixelForValue(value);
+          ctx.save();
+          ctx.strokeStyle = color;
+          ctx.setLineDash([4, 4]);
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(xScale.left, y);
+          ctx.lineTo(xScale.right, y);
+          ctx.stroke();
+          ctx.setLineDash([]);
+          ctx.fillStyle = color;
+          ctx.font = '11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+          ctx.textAlign = 'right';
+          ctx.fillText(label, xScale.right, y - 4);
+          ctx.restore();
+        }
+        drawLine(1.0, c.bad, 'Break-even 1.0x');
+        drawLine(3.0, c.good, 'Healthy 3.0x');
+      }
+    };
+
+    var maxVal = Math.max.apply(null, data);
+    var ctx = document.getElementById('chartRatio').getContext('2d');
+    new Chart(ctx, {
+      type: 'bar',
+      data: { labels: labels, datasets: [{ label: 'LTV:CAC', data: data, backgroundColor: series.slice(0, labels.length), borderRadius: 6, maxBarThickness: 56 }] },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: function (c) { return c.parsed.y.toFixed(2) + 'x'; } } }
+        },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: colors.muted } },
+          y: { suggestedMax: maxVal * 1.25, grid: { color: colors.line }, ticks: { color: colors.muted, callback: function (v) { return v + 'x'; } } }
+        }
+      },
+      plugins: [refLinesPlugin]
+    });
+  }
+
+  // ── Wire-up ──────────────────────────────────────────────────────────────
+  var currentMetric = 'ltv';
+  var currentChannel = 'all';
+
+  function renderAll() {
+    renderKPIs(currentChannel);
+    renderHeatmap(currentChannel, currentMetric);
+    renderCohortChart(currentChannel, currentMetric);
+  }
+
+  PF.applyChartDefaults();
+  buildRetentionChart();
+  buildRatioChart();
+  renderAll();
+
+  PF.initSeg(document, function (name, value) {
+    if (name === 'cohortMetric') { currentMetric = value; renderAll(); }
+  });
+  document.getElementById('channelSelect').addEventListener('change', function (e) {
+    currentChannel = e.target.value;
+    renderAll();
+  });
+
+  var origToggle = PF.toggleTheme;
+  PF.toggleTheme = function () {
+    origToggle();
+    renderHeatmap(currentChannel, currentMetric);
+  };
+})();
+</script>
+
+<script>PF.foot();</script>
+</body>
+</html>

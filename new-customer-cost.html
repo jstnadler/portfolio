@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>New-Customer Cost &amp; Spend Plan · Justin Adler</title>
+<link rel="stylesheet" href="assets/portfolio.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="assets/portfolio.js"></script>
+</head>
+<body>
+<script>PF.chrome('new-customer-cost.html');</script>
+
+<main>
+<script>document.write(PF.crumbs('New-Customer Cost & Spend Plan'));</script>
+
+<h1>New-Customer Cost &amp; Spend Plan</h1>
+<p class="sub">Models how many new customers a given monthly budget buys at current efficiency, and what CAC-payback window that implies. Move the sliders and scenario toggles below — every number on this page recomputes live.</p>
+
+<div class="card">
+  <h3>Plan Inputs</h3>
+  <div class="grid g2">
+    <div>
+      <label for="budgetSlider">Monthly budget: <span class="num" id="budgetVal">$37,500</span></label><br>
+      <input type="range" id="budgetSlider" min="15000" max="70000" step="500" value="37500" style="width:100%">
+    </div>
+    <div>
+      <label for="cacSlider">Target CAC: <span class="num" id="cacVal">$48</span></label><br>
+      <input type="range" id="cacSlider" min="20" max="90" step="1" value="48" style="width:100%">
+    </div>
+  </div>
+  <div class="controls" style="margin-top:14px">
+    <div class="seg" data-seg="scenario">
+      <button data-v="balanced" aria-pressed="true">Balanced</button>
+      <button data-v="prospecting" aria-pressed="false">Prospecting-heavy</button>
+      <button data-v="retention" aria-pressed="false">Retention-heavy</button>
+    </div>
+    <div class="seg" data-seg="horizon">
+      <button data-v="6" aria-pressed="false">6 mo</button>
+      <button data-v="12" aria-pressed="true">12 mo</button>
+      <button data-v="18" aria-pressed="false">18 mo</button>
+    </div>
+  </div>
+</div>
+
+<h2>Plan Summary</h2>
+<div class="grid g3">
+  <div class="kpi"><div class="lbl">Planned Monthly Spend</div><div class="val" id="kpiSpend">—</div></div>
+  <div class="kpi"><div class="lbl">Projected New Customers / mo</div><div class="val" id="kpiCustomers">—</div></div>
+  <div class="kpi"><div class="lbl">Implied CAC</div><div class="val" id="kpiCAC">—</div></div>
+  <div class="kpi"><div class="lbl">CAC-Payback</div><div class="val" id="kpiPayback">—</div></div>
+  <div class="kpi"><div class="lbl">Proj. 12-mo Revenue from Cohort</div><div class="val" id="kpiRevenue12">—</div></div>
+  <div class="kpi"><div class="lbl">Contribution after CAC</div><div class="val" id="kpiContribution">—</div></div>
+</div>
+
+<h2>Cumulative New Customers</h2>
+<div class="card">
+  <div class="chart-wrap"><canvas id="chartCustomers"></canvas></div>
+  <p class="note">Cumulative headcount of new customers acquired under the planned monthly budget, at the selected channel-mix scenario, over the chosen horizon. Efficiency drifts slightly as spend continues steadily (audience saturation), so monthly additions taper a little month over month.</p>
+</div>
+
+<h2>CAC-Payback Curve</h2>
+<div class="card">
+  <div class="chart-wrap"><canvas id="chartPayback"></canvas></div>
+  <p class="note">Cumulative contribution per customer, tracked from the month they are acquired. The dashed line is break-even (zero). Where the solid line first crosses it is the CAC-payback month shown above.</p>
+</div>
+
+<h2>Planned Spend Allocation by Channel</h2>
+<div class="card">
+  <div class="chart-wrap"><canvas id="chartSpendMix"></canvas></div>
+  <p class="note">Monthly budget split across four channel groups under the selected scenario. Prospecting and retargeting drive new-customer volume directly; retention/lifecycle spend mostly serves existing customers, so it dilutes blended new-customer efficiency the more of the budget it takes.</p>
+</div>
+
+<h2>Month-by-Month Plan</h2>
+<div class="card">
+  <div class="tbl-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th class="sortable" data-sort="num">Month</th>
+          <th class="sortable num" data-sort="num">Spend</th>
+          <th class="sortable num" data-sort="num">New Customers</th>
+          <th class="sortable num" data-sort="num">CAC</th>
+          <th class="sortable num" data-sort="num">Cumulative Customers</th>
+          <th class="sortable num" data-sort="num">Revenue</th>
+          <th class="sortable num" data-sort="num">Contribution</th>
+          <th class="sortable" data-sort="text">Status</th>
+        </tr>
+      </thead>
+      <tbody id="planTableBody"></tbody>
+    </table>
+  </div>
+  <p class="note">Revenue and contribution each month include repeat purchases from every prior month's cohort, not just that month's new customers. Status reflects the program's cumulative net position (all contribution to date vs. all spend to date), not any single month in isolation.</p>
+</div>
+
+<p class="note">All figures on this page are synthetic and generated by a seeded model for illustration only — they are not Teeccino's actual budget, CAC, margin, or revenue figures. This is a planning tool, not a report of historical results.</p>
+
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Fixed model assumptions (synthetic, illustrative) ──────────────────
+  var AOV = 54;                 // average order value, $
+  var MARGIN_PCT = 0.44;         // contribution margin as % of AOV, before CAC
+  var BASE_REPEAT = 0.30;        // month-1-after-acquisition reorder probability
+  var REPEAT_DECAY = 0.93;       // per additional month
+  var REPEAT_FLOOR = 0.09;       // long-tail floor on monthly reorder probability
+  var SATURATION_DRIFT = 0.006;  // CAC drift per month of steady spend (audience saturation)
+  var PAYBACK_WINDOW = 30;       // months searched for CAC-payback crossing
+
+  var SCENARIOS = {
+    balanced: {
+      label: 'Balanced', cacMult: 1.00,
+      alloc: [45, 20, 20, 15]
+    },
+    prospecting: {
+      label: 'Prospecting-heavy', cacMult: 1.10,
+      alloc: [65, 15, 12, 8]
+    },
+    retention: {
+      label: 'Retention-heavy', cacMult: 1.32,
+      alloc: [30, 15, 15, 40]
+    }
+  };
+  var CHANNELS = ['Prospecting (Meta/Google)', 'Retargeting', 'Affiliate & Influencer', 'Retention & Lifecycle'];
+
+  function repeatProb(k) {
+    if (k <= 0) return 0;
+    return Math.max(REPEAT_FLOOR, BASE_REPEAT * Math.pow(REPEAT_DECAY, k - 1));
+  }
+
+  // ── Model ────────────────────────────────────────────────────────────────
+  function computeModel(budget, targetCAC, scenarioKey, horizon) {
+    var sc = SCENARIOS[scenarioKey];
+    var months = [];
+    for (var i = 1; i <= horizon; i++) months.push(i);
+
+    var effectiveCAC = months.map(function (m) {
+      return targetCAC * sc.cacMult * Math.pow(1 + SATURATION_DRIFT, m - 1);
+    });
+    var newCustomers = months.map(function (m, idx) { return budget / effectiveCAC[idx]; });
+
+    var cumulativeCustomers = [];
+    var running = 0;
+    newCustomers.forEach(function (n) { running += n; cumulativeCustomers.push(running); });
+
+    // Monthly revenue = this month's acquisitions' first order + repeat revenue from every prior cohort
+    var revenue = months.map(function (m, idx) {
+      var r = newCustomers[idx] * AOV;
+      for (var c = 0; c < idx; c++) {
+        r += newCustomers[c] * repeatProb(idx - c) * AOV;
+      }
+      return r;
+    });
+
+    var spend = months.map(function () { return budget; });
+    var grossContribution = revenue.map(function (r) { return r * MARGIN_PCT; });
+    var netContribution = grossContribution.map(function (g, idx) { return g - spend[idx]; });
+
+    var cumulativeSpend = [], cumulativeGross = [], cumulativeNet = [];
+    var runSpend = 0, runGross = 0;
+    for (var i2 = 0; i2 < months.length; i2++) {
+      runSpend += spend[i2];
+      runGross += grossContribution[i2];
+      cumulativeSpend.push(runSpend);
+      cumulativeGross.push(runGross);
+      cumulativeNet.push(runGross - runSpend);
+    }
+
+    // Per-customer CAC-payback curve, based on month-1 acquisition economics
+    var effectiveCAC1 = effectiveCAC[0];
+    var perCustomer = [AOV * MARGIN_PCT - effectiveCAC1];
+    for (var t = 1; t <= PAYBACK_WINDOW; t++) {
+      perCustomer.push(perCustomer[t - 1] + repeatProb(t) * AOV * MARGIN_PCT);
+    }
+    var paybackMonths = null;
+    for (var t2 = 0; t2 < perCustomer.length; t2++) {
+      if (perCustomer[t2] >= 0) {
+        if (t2 === 0) { paybackMonths = 0; }
+        else {
+          var prev = perCustomer[t2 - 1], cur = perCustomer[t2];
+          var frac = (0 - prev) / (cur - prev);
+          paybackMonths = (t2 - 1) + frac;
+        }
+        break;
+      }
+    }
+    var paybackCapped = paybackMonths === null;
+    if (paybackCapped) paybackMonths = PAYBACK_WINDOW;
+
+    // 12-month cohort projection (always a fixed 12-month window from month-1 cohort)
+    var cohortSize = newCustomers[0];
+    var cohortRevenue12 = cohortSize * AOV;
+    for (var k = 1; k <= 11; k++) cohortRevenue12 += cohortSize * repeatProb(k) * AOV;
+    var contributionAfterCAC = cohortRevenue12 * MARGIN_PCT - cohortSize * effectiveCAC1;
+
+    // Spend allocation by channel, per month (flat allocation of flat budget)
+    var channelSpend = sc.alloc.map(function (pct) {
+      return months.map(function () { return budget * (pct / 100); });
+    });
+
+    var chart2Len = Math.min(PAYBACK_WINDOW, Math.max(horizon, Math.ceil(paybackMonths) + 3));
+
+    return {
+      months: months, effectiveCAC: effectiveCAC, newCustomers: newCustomers,
+      cumulativeCustomers: cumulativeCustomers, revenue: revenue, spend: spend,
+      grossContribution: grossContribution, netContribution: netContribution,
+      cumulativeSpend: cumulativeSpend, cumulativeGross: cumulativeGross, cumulativeNet: cumulativeNet,
+      perCustomer: perCustomer, paybackMonths: paybackMonths, paybackCapped: paybackCapped,
+      cohortSize: cohortSize, cohortRevenue12: cohortRevenue12, contributionAfterCAC: contributionAfterCAC,
+      channelSpend: channelSpend, chart2Len: chart2Len, scenarioLabel: sc.label
+    };
+  }
+
+  // ── Rendering ────────────────────────────────────────────────────────────
+  var chartCustomers, chartPayback, chartSpendMix;
+
+  function paybackStatus(cumNet, cumSpend) {
+    if (cumNet >= 0) return { text: 'Profitable', cls: 'good' };
+    if (cumNet >= -0.15 * cumSpend) return { text: 'Near breakeven', cls: 'warn' };
+    return { text: 'Building', cls: 'mute' };
+  }
+
+  function renderKPIs(m) {
+    document.getElementById('kpiSpend').textContent = PF.usd(m.spend[0], 0);
+    document.getElementById('kpiCustomers').textContent = PF.num(Math.round(m.newCustomers[0]), 0);
+    document.getElementById('kpiCAC').textContent = PF.usd(m.effectiveCAC[0], 2);
+    document.getElementById('kpiPayback').textContent =
+      (m.paybackCapped ? PF.num(m.paybackMonths, 0) + '+' : PF.num(m.paybackMonths, 1)) + ' mo';
+    document.getElementById('kpiRevenue12').textContent = PF.usdK(m.cohortRevenue12);
+    document.getElementById('kpiContribution').textContent = PF.usdK(m.contributionAfterCAC);
+  }
+
+  function renderCharts(m) {
+    var colors = PF.colors();
+    var series = PF.series();
+
+    var labels1 = m.months.map(function (mo) { return 'Mo ' + mo; });
+    var data1 = m.cumulativeCustomers.map(function (v) { return Math.round(v); });
+    if (!chartCustomers) {
+      chartCustomers = new Chart(document.getElementById('chartCustomers').getContext('2d'), {
+        type: 'line',
+        data: { labels: labels1, datasets: [{
+          label: 'Cumulative New Customers', data: data1,
+          borderColor: series[0], backgroundColor: series[0], fill: false, tension: 0.25, pointRadius: 2
+        }] },
+        options: {
+          scales: {
+            x: { grid: { color: colors.line }, ticks: { color: colors.muted } },
+            y: { beginAtZero: true, grid: { color: colors.line }, ticks: { color: colors.muted } }
+          },
+          plugins: { legend: { display: false } }
+        }
+      });
+    } else {
+      chartCustomers.data.labels = labels1;
+      chartCustomers.data.datasets[0].data = data1;
+      chartCustomers.update();
+    }
+
+    var labels2 = [];
+    for (var i = 0; i < m.chart2Len; i++) labels2.push(i === 0 ? 'Acq.' : 'Mo ' + i);
+    var data2 = m.perCustomer.slice(0, m.chart2Len);
+    var zero2 = data2.map(function () { return 0; });
+    if (!chartPayback) {
+      chartPayback = new Chart(document.getElementById('chartPayback').getContext('2d'), {
+        type: 'line',
+        data: { labels: labels2, datasets: [
+          { label: 'Cumulative Contribution / Customer', data: data2,
+            borderColor: series[0], backgroundColor: series[0], fill: false, tension: 0.2, pointRadius: 2 },
+          { label: 'Break-even', data: zero2,
+            borderColor: colors.muted, borderDash: [6, 4], pointRadius: 0, fill: false }
+        ] },
+        options: {
+          scales: {
+            x: { grid: { color: colors.line }, ticks: { color: colors.muted } },
+            y: { grid: { color: colors.line }, ticks: { color: colors.muted,
+                 callback: function (v) { return PF.usd(v, 0); } } }
+          }
+        }
+      });
+    } else {
+      chartPayback.data.labels = labels2;
+      chartPayback.data.datasets[0].data = data2;
+      chartPayback.data.datasets[1].data = zero2;
+      chartPayback.update();
+    }
+
+    var labels3 = m.months.map(function (mo) { return 'Mo ' + mo; });
+    var datasets3 = CHANNELS.map(function (name, idx) {
+      return {
+        label: name, data: m.channelSpend[idx].map(function (v) { return Math.round(v); }),
+        backgroundColor: series[idx], stack: 'spend'
+      };
+    });
+    if (!chartSpendMix) {
+      chartSpendMix = new Chart(document.getElementById('chartSpendMix').getContext('2d'), {
+        type: 'bar',
+        data: { labels: labels3, datasets: datasets3 },
+        options: {
+          scales: {
+            x: { stacked: true, grid: { color: colors.line }, ticks: { color: colors.muted } },
+            y: { stacked: true, grid: { color: colors.line }, ticks: { color: colors.muted,
+                 callback: function (v) { return PF.usdK(v); } } }
+          }
+        }
+      });
+    } else {
+      chartSpendMix.data.labels = labels3;
+      chartSpendMix.data.datasets = datasets3;
+      chartSpendMix.update();
+    }
+  }
+
+  function renderTable(m) {
+    var rows = m.months.map(function (mo, idx) {
+      var status = paybackStatus(m.cumulativeNet[idx], m.cumulativeSpend[idx]);
+      return '<tr>' +
+        '<td data-v="' + mo + '">' + mo + '</td>' +
+        '<td class="num" data-v="' + m.spend[idx] + '">' + PF.usd(m.spend[idx], 0) + '</td>' +
+        '<td class="num" data-v="' + m.newCustomers[idx] + '">' + PF.num(Math.round(m.newCustomers[idx]), 0) + '</td>' +
+        '<td class="num" data-v="' + m.effectiveCAC[idx] + '">' + PF.usd(m.effectiveCAC[idx], 2) + '</td>' +
+        '<td class="num" data-v="' + m.cumulativeCustomers[idx] + '">' + PF.num(Math.round(m.cumulativeCustomers[idx]), 0) + '</td>' +
+        '<td class="num" data-v="' + m.revenue[idx] + '">' + PF.usd(m.revenue[idx], 0) + '</td>' +
+        '<td class="num" data-v="' + m.netContribution[idx] + '">' + PF.usd(m.netContribution[idx], 0) + '</td>' +
+        '<td data-v="' + status.text + '"><span class="pill ' + status.cls + '">' + status.text + '</span></td>' +
+        '</tr>';
+    });
+    document.getElementById('planTableBody').innerHTML = rows.join('');
+    PF.initSort(document);
+  }
+
+  function render() {
+    var budget = parseInt(document.getElementById('budgetSlider').value, 10);
+    var cac = parseInt(document.getElementById('cacSlider').value, 10);
+    var scenario = PF.segValue('scenario') || 'balanced';
+    var horizon = parseInt(PF.segValue('horizon') || '12', 10);
+
+    document.getElementById('budgetVal').textContent = PF.usd(budget, 0);
+    document.getElementById('cacVal').textContent = PF.usd(cac, 0);
+
+    var model = computeModel(budget, cac, scenario, horizon);
+    renderKPIs(model);
+    renderCharts(model);
+    renderTable(model);
+  }
+
+  PF.applyChartDefaults();
+  document.getElementById('budgetSlider').addEventListener('input', render);
+  document.getElementById('cacSlider').addEventListener('input', render);
+  PF.initSeg(document, render);
+  render();
+})();
+</script>
+
+<script>PF.foot();</script>
+</body>
+</html>

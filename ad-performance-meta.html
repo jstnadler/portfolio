@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>Ad Performance — Meta | Justin Adler</title>
+<link rel="stylesheet" href="assets/portfolio.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="assets/portfolio.js"></script>
+</head>
+<body>
+<script>
+(function () {
+  'use strict';
+
+  // ── 1. Synthetic data model ──────────────────────────────────────────────
+  // Deterministic mulberry32 PRNG via PF.rng — never Math.random().
+  var SEED = 48217;
+  var rng = PF.rng(SEED);
+
+  var ANCHOR = new Date(2026, 7, 19); // "today" for this portfolio build
+  var NDAYS = 800; // enough history for 12mo-vs-prior-12mo comparisons
+
+  var STAGES = [
+    { name: 'Prospecting', weight: 0.34, cpmBase: 15.5, ctrBase: 1.05, convBase: 0.028, roasBase: 1.55 },
+    { name: 'Retargeting', weight: 0.24, cpmBase: 13.0, ctrBase: 2.35, convBase: 0.062, roasBase: 3.35 },
+    { name: 'Cold-TOF',    weight: 0.23, cpmBase: 16.5, ctrBase: 0.85, convBase: 0.021, roasBase: 1.25 },
+    { name: 'Broad',       weight: 0.19, cpmBase: 14.0, ctrBase: 1.30, convBase: 0.034, roasBase: 1.95 }
+  ];
+
+  function monthFactor(m) {
+    // 0=Jan..11=Dec. BFCM run-up + Jan resolution bump; summer dip.
+    if (m === 10) return 1.35; // Nov
+    if (m === 11) return 1.15; // Dec
+    if (m === 0)  return 1.22; // Jan
+    if (m === 6)  return 0.90; // Jul
+    if (m === 7)  return 0.93; // Aug
+    return 1.0;
+  }
+  function dowFactor(dow) {
+    if (dow === 0 || dow === 6) return 0.80; // Sat/Sun
+    if (dow === 1) return 0.95; // Mon
+    if (dow === 5) return 1.00; // Fri
+    return 1.05; // Tue-Thu
+  }
+
+  var DAILY = [];
+  (function buildDaily() {
+    for (var i = 0; i < NDAYS; i++) {
+      var d = new Date(ANCHOR);
+      d.setDate(d.getDate() - (NDAYS - 1 - i));
+      var t = i / (NDAYS - 1);
+      var mf = monthFactor(d.getMonth());
+      var df = dowFactor(d.getDay());
+      var trend = 0.85 + 0.30 * t;
+      var dayJit = PF.jitter(rng);
+      var baseDaily = 700;
+      var totalSpend = baseDaily * trend * df * mf * (1 + dayJit * 0.15);
+
+      var stagesOut = [];
+      var sumSpend = 0, sumImpr = 0, sumClicks = 0, sumPurch = 0, sumRev = 0;
+      for (var s = 0; s < STAGES.length; s++) {
+        var st = STAGES[s];
+        var jS = PF.jitter(rng), jC = PF.jitter(rng), jK = PF.jitter(rng), jV = PF.jitter(rng), jR = PF.jitter(rng);
+        var spend = totalSpend * st.weight * (1 + jS * 0.12);
+        var cpm = st.cpmBase * (1 + (mf - 1) * 0.6) * (1 + jC * 0.05);
+        var impr = (spend / cpm) * 1000;
+        var ctr = st.ctrBase * (1 + jK * 0.10);
+        var clicks = impr * ctr / 100;
+        var conv = st.convBase * (1 + jV * 0.12);
+        var purch = clicks * conv;
+        var roas = st.roasBase * (1 + 0.08 * t) * (1 + jR * 0.15);
+        var rev = spend * roas;
+        stagesOut.push({ name: st.name, spend: spend, impr: impr, clicks: clicks, purch: purch, rev: rev });
+        sumSpend += spend; sumImpr += impr; sumClicks += clicks; sumPurch += purch; sumRev += rev;
+      }
+      var freq = 1.55 + 0.60 * t + PF.jitter(rng) * 0.10;
+      if (freq < 1.2) freq = 1.2; if (freq > 3.4) freq = 3.4;
+
+      DAILY.push({
+        date: d, iso: d.toISOString().slice(0, 10),
+        stages: stagesOut,
+        spend: sumSpend, impr: sumImpr, clicks: sumClicks, purch: sumPurch, rev: sumRev, freq: freq
+      });
+    }
+  })();
+
+  // ── Campaigns (12) — deterministic per-campaign profile ──────────────────
+  var campRng = PF.rng(SEED + 101);
+  var CAMPAIGNS = [
+    { name: 'TOF | Video | Quit-Caffeine | BroadUS',            stage: 'Cold-TOF' },
+    { name: 'TOF | UGC | Coffee-Alternative | LAL-3%',          stage: 'Cold-TOF' },
+    { name: 'TOF | Carousel | Chicory-Benefits | Wellness-Int', stage: 'Cold-TOF' },
+    { name: 'PRO | Static | Bestseller-Bundle | LAL-1%',        stage: 'Prospecting' },
+    { name: 'PRO | Video | Founder-Story | Coffee-Int',         stage: 'Prospecting' },
+    { name: 'PRO | Collection | Mocha-Herbal | Women25-54',     stage: 'Prospecting' },
+    { name: 'RTG | DPV-7d | Cart-Abandon | Dynamic',            stage: 'Retargeting' },
+    { name: 'RTG | Site-30d | Subscribe-Save | Static',         stage: 'Retargeting' },
+    { name: 'RTG | Engaged-IG-90d | Sampler-Pack | Carousel',   stage: 'Retargeting' },
+    { name: 'BRD | Advantage+ | Full-Catalog | AI-Audience',    stage: 'Broad' },
+    { name: 'BRD | Video | Brand-Awareness | 25-64',            stage: 'Broad' },
+    { name: 'BRD | Static | New-Customer | Broad-Interests',    stage: 'Broad' }
+  ];
+  CAMPAIGNS.forEach(function (c) {
+    c.shareBase = 0.6 + campRng() * 0.8;
+    c.convMult = 0.75 + campRng() * 0.55;
+    c.roasMult = 0.78 + campRng() * 0.5;
+    c.ctrMult = 0.80 + campRng() * 0.45;
+  });
+
+  // ── 2. Period math ────────────────────────────────────────────────────────
+  function windowSlice(fromDate, toDate) {
+    // inclusive date range -> array of DAILY entries
+    return DAILY.filter(function (d) { return d.date >= fromDate && d.date <= toDate; });
+  }
+  function addDays(d, n) { var r = new Date(d); r.setDate(r.getDate() + n); return r; }
+
+  function periodRanges(range) {
+    var end = ANCHOR;
+    if (range === '30d') {
+      var cs = addDays(end, -29);
+      var ps = addDays(cs, -30), pe = addDays(cs, -1);
+      return { cur: [cs, end], prev: [ps, pe] };
+    }
+    if (range === '90d') {
+      var cs2 = addDays(end, -89);
+      var ps2 = addDays(cs2, -90), pe2 = addDays(cs2, -1);
+      return { cur: [cs2, end], prev: [ps2, pe2] };
+    }
+    if (range === 'ytd') {
+      var cs3 = new Date(end.getFullYear(), 0, 1);
+      var ps3 = new Date(end.getFullYear() - 1, 0, 1);
+      var pe3 = new Date(end.getFullYear() - 1, end.getMonth(), end.getDate());
+      return { cur: [cs3, end], prev: [ps3, pe3] };
+    }
+    // 12mo
+    var cs4 = addDays(end, -364);
+    var ps4 = addDays(cs4, -365), pe4 = addDays(cs4, -1);
+    return { cur: [cs4, end], prev: [ps4, pe4] };
+  }
+
+  function aggregate(days) {
+    var a = { spend: 0, impr: 0, clicks: 0, purch: 0, rev: 0, freqSum: 0, n: 0, byStage: {} };
+    STAGES.forEach(function (st) { a.byStage[st.name] = { spend: 0, impr: 0, clicks: 0, purch: 0, rev: 0 }; });
+    days.forEach(function (d) {
+      a.spend += d.spend; a.impr += d.impr; a.clicks += d.clicks; a.purch += d.purch; a.rev += d.rev;
+      a.freqSum += d.freq; a.n++;
+      d.stages.forEach(function (s) {
+        var b = a.byStage[s.name];
+        b.spend += s.spend; b.impr += s.impr; b.clicks += s.clicks; b.purch += s.purch; b.rev += s.rev;
+      });
+    });
+    a.ctr = a.impr ? (a.clicks / a.impr * 100) : 0;
+    a.cpm = a.impr ? (a.spend / a.impr * 1000) : 0;
+    a.cpp = a.purch ? (a.spend / a.purch) : 0;
+    a.roas = a.spend ? (a.rev / a.spend) : 0;
+    a.freq = a.n ? (a.freqSum / a.n) : 0;
+    return a;
+  }
+
+  function pctChange(cur, prev) {
+    if (!prev) return null;
+    return (cur - prev) / prev * 100;
+  }
+
+  // ── 3. Campaign table rows for a given stage aggregate set ────────────────
+  function campaignRows(byStage) {
+    var rows = [];
+    STAGES.forEach(function (st) {
+      var inStage = CAMPAIGNS.filter(function (c) { return c.stage === st.name; });
+      var stageAgg = byStage[st.name];
+      var shareSum = inStage.reduce(function (s, c) { return s + c.shareBase; }, 0);
+      var purchWeightSum = inStage.reduce(function (s, c) { return s + c.shareBase * c.convMult; }, 0);
+      var revWeightSum = inStage.reduce(function (s, c) { return s + c.shareBase * c.roasMult; }, 0);
+      var clickWeightSum = inStage.reduce(function (s, c) { return s + c.shareBase * c.ctrMult; }, 0);
+      inStage.forEach(function (c) {
+        var spend = stageAgg.spend * (c.shareBase / shareSum);
+        var impr = stageAgg.impr * (c.shareBase / shareSum);
+        var clicks = stageAgg.clicks * ((c.shareBase * c.ctrMult) / clickWeightSum);
+        var purch = stageAgg.purch * ((c.shareBase * c.convMult) / purchWeightSum);
+        var rev = stageAgg.rev * ((c.shareBase * c.roasMult) / revWeightSum);
+        var ctr = impr ? (clicks / impr * 100) : 0;
+        var cpp = purch ? (spend / purch) : 0;
+        var roas = spend ? (rev / spend) : 0;
+        var status = roas >= 2.3 ? 'Scaling' : (roas >= 1.5 ? 'Holding' : 'Cut');
+        rows.push({ name: c.name, stage: st.name, spend: spend, impr: impr, ctr: ctr, purch: purch, cpp: cpp, roas: roas, status: status });
+      });
+    });
+    return rows;
+  }
+
+  // ── 4. Bucketing for time-series charts ───────────────────────────────────
+  function granularityFor(range) {
+    if (range === '30d') return 'day';
+    if (range === '90d') return 'week';
+    return 'month';
+  }
+  function mondayOf(d) {
+    var dow = d.getDay();
+    var diff = dow === 0 ? 6 : dow - 1;
+    var m = new Date(d); m.setDate(m.getDate() - diff); m.setHours(0, 0, 0, 0);
+    return m;
+  }
+  function bucketDays(days, granularity) {
+    var order = [], map = {};
+    days.forEach(function (d) {
+      var key, labelDate;
+      if (granularity === 'day') { key = d.iso; labelDate = d.date; }
+      else if (granularity === 'week') { var mon = mondayOf(d.date); key = mon.toISOString().slice(0, 10); labelDate = mon; }
+      else { key = d.date.getFullYear() + '-' + d.date.getMonth(); labelDate = new Date(d.date.getFullYear(), d.date.getMonth(), 1); }
+      if (!map[key]) { map[key] = { labelDate: labelDate, spend: 0, purch: 0, rev: 0, impr: 0, clicks: 0 }; order.push(key); }
+      var b = map[key];
+      b.spend += d.spend; b.purch += d.purch; b.rev += d.rev; b.impr += d.impr; b.clicks += d.clicks;
+    });
+    return order.map(function (k) {
+      var b = map[k];
+      return {
+        label: granularity === 'day'
+          ? (PF.MONTHS[b.labelDate.getMonth()] + ' ' + b.labelDate.getDate())
+          : granularity === 'week'
+            ? ('Wk ' + PF.MONTHS[b.labelDate.getMonth()] + ' ' + b.labelDate.getDate())
+            : (PF.MONTHS[b.labelDate.getMonth()] + " '" + String(b.labelDate.getFullYear()).slice(2)),
+        spend: b.spend, purch: b.purch, rev: b.rev, impr: b.impr, clicks: b.clicks,
+        roas: b.spend ? (b.rev / b.spend) : 0,
+        cpp: b.purch ? (b.spend / b.purch) : 0
+      };
+    });
+  }
+
+  // ── 5. Build <main> ────────────────────────────────────────────────────────
+  PF.chrome('ad-performance-meta.html');
+
+  var main = document.createElement('main');
+  main.innerHTML =
+    PF.crumbs('Ad Performance — Meta') +
+    '<h1>Ad Performance — Meta</h1>' +
+    '<p class="sub">Funnel-stage performance across prospecting, retargeting and cold top-of-funnel, ' +
+    'judged on blended MER rather than campaign-level ROAS in isolation — the metric that actually tracks ' +
+    'profitable growth at the account level.</p>' +
+    '<div class="controls">' +
+      '<div class="seg" data-seg="range">' +
+        '<button data-v="30d" aria-pressed="true">Last 30 days</button>' +
+        '<button data-v="90d" aria-pressed="false">Last 90 days</button>' +
+        '<button data-v="ytd" aria-pressed="false">YTD</button>' +
+        '<button data-v="12mo" aria-pressed="false">Last 12 months</button>' +
+      '</div>' +
+    '</div>' +
+    '<div class="grid g4" id="kpiGrid"></div>' +
+
+    '<h2>Spend vs. ROAS</h2>' +
+    '<div class="card"><div class="chart-wrap"><canvas id="chartSpendRoas"></canvas></div></div>' +
+
+    '<h2>Spend by Funnel Stage</h2>' +
+    '<div class="card"><div class="chart-wrap short"><canvas id="chartStage"></canvas></div>' +
+    '<div class="legend" id="stageLegend"></div></div>' +
+
+    '<h2>Cost per Purchase Trend</h2>' +
+    '<div class="card"><div class="chart-wrap short"><canvas id="chartCpp"></canvas></div></div>' +
+
+    '<h2>Campaign Performance</h2>' +
+    '<div class="card"><div class="tbl-scroll"><table id="campTable">' +
+      '<thead><tr>' +
+        '<th class="sortable" data-sort="text">Campaign</th>' +
+        '<th class="sortable" data-sort="text">Stage</th>' +
+        '<th class="sortable num">Spend</th>' +
+        '<th class="sortable num">Impressions</th>' +
+        '<th class="sortable num">CTR</th>' +
+        '<th class="sortable num">Purchases</th>' +
+        '<th class="sortable num">CPP</th>' +
+        '<th class="sortable num">ROAS</th>' +
+        '<th class="sortable" data-sort="text">Status</th>' +
+      '</tr></thead>' +
+      '<tbody id="campBody"></tbody>' +
+    '</table></div>' +
+    '<p class="note">All figures on this page are synthetic and deterministically generated for portfolio ' +
+    'purposes. They approximate the scale and shape of a DTC coffee-alternative brand running roughly ' +
+    '$18K-$25K/month on Meta, but do not reflect any real account.</p>' +
+    '</div>';
+  document.body.appendChild(main);
+
+  // ── 6. Chart plumbing ─────────────────────────────────────────────────────
+  PF.applyChartDefaults();
+  var chartSpendRoas = null, chartStage = null, chartCpp = null;
+  var stageRoasLabels = [];
+
+  var roasLabelsPlugin = {
+    id: 'roasLabels',
+    afterDatasetsDraw: function (chart) {
+      if (chart.canvas.id !== 'chartStage') return;
+      var meta = chart.getDatasetMeta(0);
+      var c = PF.colors();
+      var ctx = chart.ctx;
+      ctx.save();
+      ctx.fillStyle = c.fg;
+      ctx.font = '600 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+      ctx.textAlign = 'center';
+      meta.data.forEach(function (bar, i) {
+        var label = stageRoasLabels[i];
+        if (label === undefined) return;
+        ctx.fillText(label, bar.x, bar.y - 8);
+      });
+      ctx.restore();
+    }
+  };
+  Chart.register(roasLabelsPlugin);
+
+  function render(range) {
+    var rr = periodRanges(range);
+    var curDays = windowSlice(rr.cur[0], rr.cur[1]);
+    var prevDays = windowSlice(rr.prev[0], rr.prev[1]);
+    var cur = aggregate(curDays);
+    var prev = aggregate(prevDays);
+
+    // KPI tiles
+    var kpis = [
+      { lbl: 'Spend', val: PF.usdK(cur.spend), d: pctChange(cur.spend, prev.spend), invert: false },
+      { lbl: 'Purchases', val: PF.num(Math.round(cur.purch)), d: pctChange(cur.purch, prev.purch), invert: false },
+      { lbl: 'ROAS', val: PF.num(cur.roas, 2) + 'x', d: pctChange(cur.roas, prev.roas), invert: false },
+      { lbl: 'Cost per Purchase', val: PF.usd(cur.cpp, 2), d: pctChange(cur.cpp, prev.cpp), invert: true },
+      { lbl: 'CTR', val: PF.pct(cur.ctr, 2), d: pctChange(cur.ctr, prev.ctr), invert: false },
+      { lbl: 'CPM', val: PF.usd(cur.cpm, 2), d: pctChange(cur.cpm, prev.cpm), invert: true },
+      { lbl: 'Impressions', val: PF.numK(Math.round(cur.impr)), d: pctChange(cur.impr, prev.impr), invert: false },
+      { lbl: 'Frequency', val: PF.num(cur.freq, 2) + 'x', d: pctChange(cur.freq, prev.freq), invert: false }
+    ];
+    document.getElementById('kpiGrid').innerHTML = kpis.map(function (k) {
+      return '<div class="kpi"><div class="lbl">' + k.lbl + '</div><div class="val">' + k.val + '</div>' +
+        '<div class="dlt">' + PF.delta(k.d, 1, k.invert) + ' vs. prior period</div></div>';
+    }).join('');
+
+    // Chart 1 — spend (bars) vs ROAS (line)
+    var gran = granularityFor(range);
+    var buckets = bucketDays(curDays, gran);
+    var c = PF.colors();
+    var s = PF.series();
+    if (chartSpendRoas) chartSpendRoas.destroy();
+    chartSpendRoas = new Chart(document.getElementById('chartSpendRoas'), {
+      type: 'bar',
+      data: {
+        labels: buckets.map(function (b) { return b.label; }),
+        datasets: [
+          { type: 'bar', label: 'Spend', data: buckets.map(function (b) { return b.spend; }), backgroundColor: s[0], yAxisID: 'y', order: 2, borderRadius: 3 },
+          { type: 'line', label: 'ROAS', data: buckets.map(function (b) { return b.roas; }), borderColor: s[2], backgroundColor: s[2], yAxisID: 'y1', order: 1, tension: 0.3, pointRadius: 2.5, borderWidth: 2 }
+        ]
+      },
+      options: {
+        interaction: { mode: 'index', intersect: false },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: c.muted } },
+          y: { position: 'left', grid: { color: c.line }, ticks: { color: c.muted, callback: function (v) { return PF.usdK(v); } }, title: { display: true, text: 'Spend', color: c.muted } },
+          y1: { position: 'right', grid: { display: false }, ticks: { color: c.muted, callback: function (v) { return v.toFixed(1) + 'x'; } }, title: { display: true, text: 'ROAS', color: c.muted } }
+        },
+        plugins: { legend: { position: 'top' } }
+      }
+    });
+
+    // Chart 2 — spend by funnel stage with ROAS labels
+    var stageOrder = STAGES.map(function (st) { return st.name; });
+    var stageSpends = stageOrder.map(function (n) { return cur.byStage[n].spend; });
+    var stageRoas = stageOrder.map(function (n) { var b = cur.byStage[n]; return b.spend ? (b.rev / b.spend) : 0; });
+    stageRoasLabels = stageRoas.map(function (v) { return v.toFixed(2) + 'x'; });
+    if (chartStage) chartStage.destroy();
+    chartStage = new Chart(document.getElementById('chartStage'), {
+      type: 'bar',
+      data: {
+        labels: stageOrder,
+        datasets: [{ label: 'Spend', data: stageSpends, backgroundColor: s.slice(0, 4), borderRadius: 4 }]
+      },
+      options: {
+        layout: { padding: { top: 22 } },
+        scales: {
+          x: { grid: { display: false }, ticks: { color: c.muted } },
+          y: { grid: { color: c.line }, ticks: { color: c.muted, callback: function (v) { return PF.usdK(v); } } }
+        },
+        plugins: { legend: { display: false } }
+      }
+    });
+    document.getElementById('stageLegend').innerHTML = stageOrder.map(function (n, i) {
+      return '<span><i style="background:' + s[i] + '"></i>' + n + ': ' + PF.usdK(stageSpends[i]) + ' spend, ' + stageRoasLabels[i] + ' ROAS</span>';
+    }).join('');
+
+    // Chart 3 — CPP trend with target band
+    var target = 26, bandLow = 22, bandHigh = 30;
+    if (chartCpp) chartCpp.destroy();
+    chartCpp = new Chart(document.getElementById('chartCpp'), {
+      type: 'line',
+      data: {
+        labels: buckets.map(function (b) { return b.label; }),
+        datasets: [
+          { label: 'Band high', data: buckets.map(function () { return bandHigh; }), borderWidth: 0, pointRadius: 0, fill: '+1', backgroundColor: 'color-mix(in srgb, ' + c.accent + ' 12%, transparent)' },
+          { label: 'Band low', data: buckets.map(function () { return bandLow; }), borderWidth: 0, pointRadius: 0, fill: false },
+          { label: 'Target', data: buckets.map(function () { return target; }), borderColor: c.muted, borderDash: [4, 4], borderWidth: 1.5, pointRadius: 0, fill: false },
+          { label: 'Cost per Purchase', data: buckets.map(function (b) { return b.cpp; }), borderColor: s[3], backgroundColor: s[3], tension: 0.3, pointRadius: 2.5, borderWidth: 2, fill: false }
+        ]
+      },
+      options: {
+        scales: {
+          x: { grid: { display: false }, ticks: { color: c.muted } },
+          y: { grid: { color: c.line }, ticks: { color: c.muted, callback: function (v) { return PF.usd(v); } } }
+        },
+        plugins: {
+          legend: { labels: { filter: function (item) { return item.text === 'Target' || item.text === 'Cost per Purchase'; } } }
+        }
+      }
+    });
+
+    // Campaign table
+    var rows = campaignRows(cur.byStage);
+    document.getElementById('campBody').innerHTML = rows.map(function (r) {
+      var pillCls = r.status === 'Scaling' ? 'good' : (r.status === 'Holding' ? 'warn' : 'bad');
+      return '<tr>' +
+        '<td>' + r.name + '</td>' +
+        '<td>' + r.stage + '</td>' +
+        '<td class="num" data-v="' + r.spend.toFixed(2) + '">' + PF.usd(r.spend) + '</td>' +
+        '<td class="num" data-v="' + Math.round(r.impr) + '">' + PF.numK(r.impr) + '</td>' +
+        '<td class="num" data-v="' + r.ctr.toFixed(3) + '">' + PF.pct(r.ctr, 2) + '</td>' +
+        '<td class="num" data-v="' + Math.round(r.purch) + '">' + PF.num(Math.round(r.purch)) + '</td>' +
+        '<td class="num" data-v="' + r.cpp.toFixed(2) + '">' + PF.usd(r.cpp, 2) + '</td>' +
+        '<td class="num" data-v="' + r.roas.toFixed(3) + '">' + PF.num(r.roas, 2) + 'x</td>' +
+        '<td><span class="pill ' + pillCls + '">' + r.status + '</span></td>' +
+        '</tr>';
+    }).join('');
+    PF.initSort(document.getElementById('campTable'));
+  }
+
+  PF.initSeg(main, function (name, value) {
+    if (name === 'range') render(value);
+  });
+
+  render('30d');
+
+  PF.foot('Chart data recomputed client-side from a seeded generator; switching the date range re-derives every KPI, chart and table row from the same underlying daily dataset.');
+})();
+</script>
+</body>
+</html>
