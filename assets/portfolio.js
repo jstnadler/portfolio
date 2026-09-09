@@ -206,7 +206,8 @@
     ['production-cost-variance.html', 'Cost Variance'],
     ['product-page.html', 'Product Page'],
     ['collection-page.html', 'Collection Page'],
-    ['jackpak-concept.html', 'PDP Concept']
+    ['jackpak-concept.html', 'PDP Concept'],
+    ['jackpak-v2.html', 'PDP Concept v2']
   ];
 
   PF.chrome = function (active) {
@@ -215,7 +216,7 @@
       return '<a href="' + n[0] + '"' + (n[0] === active ? ' class="active"' : '') + '>' + n[1] + '</a>';
     }).join('');
     var STOREFRONT = { 'product-page.html': 1, 'collection-page.html': 1 };
-    var CONCEPT = { 'jackpak-concept.html': 1 };
+    var CONCEPT = { 'jackpak-concept.html': 1, 'jackpak-v2.html': 1 };
     var banner = CONCEPT[active]
       ? '<b>Independent concept.</b><span>Spec work. Not affiliated with or endorsed by the brand '
         + 'shown. Nothing here transacts.</span>'
