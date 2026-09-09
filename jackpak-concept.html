@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>JackPak Ultra2500A — product page concept · Justin Adler</title>
+<link rel="stylesheet" href="assets/portfolio.css">
+<style>
+  .jp-wrap{max-width:1180px;margin:0 auto;padding:0 20px 60px}
+
+  /* annotation system */
+  .jp-anno{position:relative}
+  body.anno-on .jp-anno{outline:1.5px dashed var(--accent);outline-offset:6px;border-radius:6px}
+  .jp-tag{display:none;position:absolute;top:-11px;left:10px;z-index:5;background:var(--accent);
+    color:#fff;font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+    padding:2px 8px;border-radius:20px;white-space:nowrap}
+  body.anno-on .jp-tag{display:inline-block}
+  .jp-why{display:none;margin:14px 0 0;padding:12px 14px;border-left:3px solid var(--accent);
+    background:var(--card-alt);border-radius:0 8px 8px 0;font-size:13px;line-height:1.55;color:var(--muted)}
+  body.anno-on .jp-why{display:block}
+  .jp-why b{color:var(--fg)}
+
+  .jp-toolbar{position:sticky;top:0;z-index:40;background:var(--card);border-bottom:1px solid var(--line);
+    padding:10px 20px;display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+  .jp-toolbar .t{font-size:13px;color:var(--muted)}
+  .jp-btn{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:20px;
+    padding:6px 14px;font-size:12.5px;font-weight:600;cursor:pointer}
+  .jp-btn[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
+
+  /* hero */
+  .jp-hero{display:grid;grid-template-columns:1.05fr .95fr;gap:40px;padding:34px 0 10px}
+  @media(max-width:900px){.jp-hero{grid-template-columns:1fr;gap:22px}}
+  .jp-gal img{width:100%;max-height:430px;object-fit:contain;border-radius:12px;background:#fff;display:block}
+  .jp-thumbs{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+  .jp-thumbs img{width:64px;height:64px;object-fit:cover;border-radius:8px;background:#fff;
+    border:1.5px solid var(--line);cursor:pointer}
+  .jp-thumbs img.sel{border-color:var(--accent)}
+
+  .jp-eyebrow{font-size:11.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--accent)}
+  .jp-h1{font-size:31px;line-height:1.18;font-weight:800;margin:8px 0 6px;letter-spacing:-.01em}
+  .jp-deck{font-size:16px;line-height:1.5;color:var(--muted);margin:0 0 18px}
+  .jp-price{font-size:27px;font-weight:800;letter-spacing:-.01em}
+  .jp-price small{font-size:13px;font-weight:600;color:var(--muted);margin-left:8px}
+
+  .jp-proof{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:18px 0}
+  .jp-proof div{background:var(--card-alt);border:1px solid var(--line);border-radius:10px;padding:11px 12px}
+  .jp-proof b{display:block;font-size:17px;font-weight:800;letter-spacing:-.01em}
+  .jp-proof span{font-size:11.5px;color:var(--muted);line-height:1.35;display:block;margin-top:2px}
+
+  .jp-cta{display:block;width:100%;background:var(--accent);color:#fff;border:0;border-radius:10px;
+    padding:15px;font-size:16px;font-weight:700;cursor:default;margin-top:6px}
+  .jp-reassure{display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:12.5px;color:var(--muted)}
+  .jp-reassure span::before{content:"✓ ";color:var(--good);font-weight:700}
+
+  .jp-sec{padding:44px 0;border-top:1px solid var(--line)}
+  .jp-sec h2{font-size:23px;font-weight:800;letter-spacing:-.01em;margin:0 0 6px}
+  .jp-sec .lede{font-size:15px;color:var(--muted);margin:0 0 22px;max-width:66ch;line-height:1.55}
+
+  .jp-fit{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+  @media(max-width:820px){.jp-fit{grid-template-columns:1fr}.jp-proof{grid-template-columns:1fr}}
+  .jp-fit .card{padding:18px}
+  .jp-fit h3{font-size:15.5px;margin:0 0 7px;font-weight:700}
+  .jp-fit p{margin:0;font-size:13.5px;line-height:1.6;color:var(--muted)}
+
+  .jp-spec{width:100%;border-collapse:collapse;font-size:13.5px}
+  .jp-spec td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+  .jp-spec td:first-child{color:var(--muted);width:230px}
+  .jp-spec td:last-child{font-weight:600}
+  .jp-spec tr.hi td{background:var(--card-alt)}
+
+  .jp-empty{border:1.5px dashed var(--line);border-radius:12px;padding:26px;text-align:center;color:var(--muted)}
+  .jp-empty b{display:block;color:var(--fg);font-size:15px;margin-bottom:6px}
+
+  .jp-disc{background:var(--card-alt);border:1px solid var(--line);border-left:3px solid var(--warn);
+    border-radius:0 10px 10px 0;padding:16px 18px;margin:22px 0;font-size:13.5px;line-height:1.6}
+  .jp-disc b{color:var(--fg)}
+</style>
+</head>
+<body>
+
+<div class="jp-toolbar">
+  <span class="t"><strong>Concept rebuild</strong> — JackPak Ultra2500A product page, written for one buyer.</span>
+  <button class="jp-btn" id="annoBtn" aria-pressed="false" onclick="toggleAnno()">Show my reasoning</button>
+  <a class="jp-btn" style="text-decoration:none" href="https://www.bendpak.com/garage-essentials/portable-power-packs/ultra2500a-jackpak-4-in-1-jump-starter-air-compressor-5180050-bendpak" target="_blank" rel="noopener">View the live page</a>
+</div>
+
+<div class="jp-wrap">
+
+  <div class="jp-disc">
+    <b>What this is.</b> An unsolicited concept by <b>Justin Adler</b>, built in a few hours from
+    publicly available information. It is <b>not affiliated with, endorsed by, or produced for
+    BendPak Inc.</b> Product name, photography, price and every specification are BendPak's own,
+    reproduced from their public product page on 2026-09-09 purely to make the layout concrete.
+    Nothing here transacts. Turn on <b>Show my reasoning</b> to see why each block is where it is.
+  </div>
+
+  <!-- ══ HERO ══════════════════════════════════════════════════════════ -->
+  <div class="jp-hero">
+    <div class="jp-gal jp-anno">
+      <span class="jp-tag">The one gap I could not fix</span>
+      <img id="mainImg" src="assets/img/jackpak-1.jpg" alt="JackPak Ultra2500A portable jump starter with air compressor">
+      <div class="jp-thumbs" id="thumbs"></div>
+      <div class="jp-why"><b>This is a gap I could not close, and it is worth naming.</b> All
+        fourteen images on the live product page are the unit on white. There is no photograph of it
+        clamped to a truck battery, sitting in a trailer box, or filling a tire at dusk — and there is
+        no video. A buyer choosing between this and a $47 alternative is not comparing objects, he is
+        comparing situations, and right now the page can only show him an object.
+        <b>Everything else on this page I could rewrite from outside. This one needs a camera</b> —
+        and it is probably the highest-return thing on the whole list.</div>
+    </div>
+
+    <div>
+      <div class="jp-anno">
+        <span class="jp-tag">Headline: the job, not the object</span>
+        <div class="jp-eyebrow">JackPak · by BendPak</div>
+        <h1 class="jp-h1">Still charged the day you finally need it.</h1>
+        <p class="jp-deck">The Ultra2500A starts a 6.5-litre diesel, fills a trailer tire to
+          150&nbsp;PSI, and sits in your truck for up to <strong>three years</strong> between charges
+          without going flat.</p>
+        <div class="jp-why"><b>Why:</b> the live headline is the SKU name and "4-in-1," which every
+          competitor also says. This buyer does not use the product monthly — he uses it once every
+          couple of years, and his real fear is that it will be dead when that day comes.
+          <b>Standby duration is the job the product does.</b> On the live page it is one row in a
+          spec table.</div>
+      </div>
+
+      <div class="jp-anno" style="margin-top:20px">
+        <span class="jp-tag">Three proofs, chosen deliberately</span>
+        <div class="jp-proof">
+          <div><b>36 months</b><span>Standby in sleep mode — ready without a top-up</span></div>
+          <div><b>6.5L diesel</b><span>8.5L gas. 1,200A starting current, 2,500A peak</span></div>
+          <div><b>150 PSI</b><span>Trailer and light-truck tires, auto-shutoff</span></div>
+        </div>
+        <div class="jp-why"><b>Why these three, and why in this order:</b> they map to the three
+          questions he actually asks — <i>will it be charged, will it turn my truck over, will it
+          fill a trailer tire.</i> <b>Note what is not here: peak amps as a headline.</b> The category
+          runs an amp arms race — rivals advertise 4,000A, 6,000A, 8,000A, 10,000A. At 2,500A this
+          product loses that comparison every time, so it should not start it. Starting current is
+          the honest number and it is the one shown.</div>
+      </div>
+
+      <div class="jp-anno" style="margin-top:22px">
+        <span class="jp-tag">Price with a reason attached</span>
+        <div class="jp-price">$316.00 <small>Item 5180050 · free shipping</small></div>
+        <button class="jp-cta">Add to Cart</button>
+        <div class="jp-reassure">
+          <span>Backed by BendPak</span><span>US support line</span><span>Ships from stock</span>
+        </div>
+        <div class="jp-why"><b>Why:</b> a $316 number sitting alone next to a category where the
+          median is around $81 has to defend itself, and on the live page nothing does. The
+          reassurance row is doing that work — and it is the honest one, because
+          <b>BendPak is the only thing here a cheaper unit cannot copy.</b> Every spec on this page is
+          matched or beaten by something under $135. The brand, the support line and the warranty
+          are not.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ WHY IT COSTS WHAT IT COSTS ════════════════════════════════════ -->
+  <div class="jp-sec jp-anno">
+    <span class="jp-tag">The objection, answered on the page</span>
+    <h2>Why this costs more than the one you saw for fifty dollars</h2>
+    <p class="lede">He is going to ask. Answering it here is cheaper than losing him to a
+      comparison tab.</p>
+    <div class="jp-fit">
+      <div class="card">
+        <h3>It is built to sit still</h3>
+        <p>Most of a jump pack's life is spent doing nothing in a hot truck. Low-power sleep mode
+          holds a usable charge for up to 36 months, and it runs from −4°F to +140°F. A pack that
+          self-discharged is worse than no pack, because you counted on it.</p>
+      </div>
+      <div class="card">
+        <h3>It is sized for what you actually tow with</h3>
+        <p>1,200 amps of starting current, rated to 8.5L gas and 6.5L diesel. The 150 PSI compressor
+          with adjustable auto-shutoff reaches trailer and light-truck pressures, not just
+          passenger-car ones.</p>
+      </div>
+      <div class="card">
+        <h3>It is safe in someone else's hands</h3>
+        <p>Keyed, colour-coded copper clamps resist reverse-polarity connection, with protection
+          against over-current, overheating, overcharge and shorts. You will hand this to a friend
+          in a parking lot at some point.</p>
+      </div>
+    </div>
+    <div class="jp-why"><b>Why this section exists at all:</b> the price objection is the single
+      biggest thing between this product and a sale, and right now the live page never acknowledges
+      it. Naming it and answering it plainly outperforms hoping he does not notice.
+      <b>Every claim in these three cards is taken verbatim from BendPak's own specification —
+      nothing is invented.</b></div>
+  </div>
+
+  <!-- ══ IS THIS FOR YOU ═══════════════════════════════════════════════ -->
+  <div class="jp-sec jp-anno">
+    <span class="jp-tag">Qualify honestly — including out</span>
+    <h2>Is this the right one for you?</h2>
+    <p class="lede">Two straight answers. One of them sends people away, on purpose.</p>
+    <div class="jp-fit" style="grid-template-columns:1fr 1fr">
+      <div class="card">
+        <h3>Yes, if you tow or run a diesel</h3>
+        <p>You have a truck, a trailer, a race car, a side-by-side or a boat, and you spend time
+          somewhere a tow truck is a two-hour problem. You want one thing in the box that starts the
+          truck and fills a tire, and you want it to work in three years without being babysat.</p>
+      </div>
+      <div class="card">
+        <h3>Probably not, if it lives in a commuter car</h3>
+        <p>If it is going in the trunk of a sedan that never leaves town, you do not need 1,200 amps
+          of starting current or trailer-grade pressure, and a smaller pack will do the job for less.
+          We would rather tell you that than sell you the wrong one.</p>
+      </div>
+    </div>
+    <div class="jp-why"><b>Why:</b> disqualifying buyers builds more trust than a page that claims
+      the product is right for everybody, and it is the fastest way to signal you are talking to a
+      professional rather than a shopper. It also quietly reframes the price — this is not an
+      expensive small jump pack, it is a correctly priced big one.</div>
+  </div>
+
+  <!-- ══ SPECS ═════════════════════════════════════════════════════════ -->
+  <div class="jp-sec jp-anno">
+    <span class="jp-tag">Specs stay — just further down, and ordered by what matters</span>
+    <h2>Specifications</h2>
+    <p class="lede">Every figure below is BendPak's own, from their published spec sheet.</p>
+    <table class="jp-spec">
+      <tr class="hi"><td>Standby (sleep mode)</td><td>Up to 36 months</td></tr>
+      <tr class="hi"><td>Starting current</td><td>1,200A · 2,500A peak</td></tr>
+      <tr class="hi"><td>Engine rating</td><td>Gasoline to 8.5L · diesel to 6.5L</td></tr>
+      <tr class="hi"><td>Air compressor</td><td>10–150 PSI, adjustable auto-shutoff</td></tr>
+      <tr><td>Operating temperature</td><td>−4°F to +140°F</td></tr>
+      <tr><td>Battery</td><td>76 Wh lithium-polymer · 20,500 mAh</td></tr>
+      <tr><td>Battery life</td><td>1,000 full charge cycles</td></tr>
+      <tr><td>Recharge time</td><td>4–7.5 hours</td></tr>
+      <tr><td>USB output</td><td>USB-A 5V/3A, 9V/2A · USB-C input 5V/3A, 9V/2A</td></tr>
+      <tr><td>Work light</td><td>300 lumens, 160° beam, 3 modes</td></tr>
+      <tr><td>Dimensions / weight</td><td>9.5 × 5.5 × 3 in · 7 lb</td></tr>
+      <tr><td>Protection</td><td>Reverse polarity, over-current, overheat, overcharge, short circuit</td></tr>
+      <tr><td>In the box</td><td>Clamps, nylon-braided hose with quick-connect chuck, inflation
+        needle, cone nozzles, Presta valve adapter</td></tr>
+      <tr><td>Item number</td><td>5180050</td></tr>
+    </table>
+    <div class="jp-why"><b>Two changes only.</b> First, <b>order</b> — standby, starting current,
+      engine rating and PSI move to the top, because those four decide the purchase and the rest is
+      reference. Second, the <b>Presta valve adapter</b> stays in the box list but never appears in
+      the marketing copy. Bicycle valves and cone nozzles are real inclusions, but leading with
+      "inflate your bike tires and sports balls" actively undercuts a $316 tool aimed at a man with a
+      trailer. Same box, different order of mention.</div>
+  </div>
+
+  <!-- ══ REVIEWS ═══════════════════════════════════════════════════════ -->
+  <div class="jp-sec jp-anno">
+    <span class="jp-tag">Deliberately left empty</span>
+    <h2>Owner reviews</h2>
+    <div class="jp-empty">
+      <b>This block is intentionally blank.</b>
+      Review module placement only — I have no BendPak review data, and I will not invent any.
+    </div>
+    <div class="jp-why"><b>Why this is the most important block on the page.</b> Judge.me is already
+      installed on the live product page, but the page carries no reviews and its structured data has
+      no <code>aggregateRating</code>. Meanwhile the same item number, 5180050, has customer reviews
+      accumulating on <b>Home Depot's</b> listing. For a $316 purchase in a category decided almost
+      entirely on review count, that is the largest single conversion gap on the page — and the
+      proof already exists, it is just on somebody else's site.
+      <b>Filling this space with invented testimonials would have made the mockup look better and the
+      thinking worthless.</b></div>
+  </div>
+
+  <!-- ══ WHAT I CHANGED ════════════════════════════════════════════════ -->
+  <div class="jp-sec">
+    <h2>What changed, and what did not</h2>
+    <p class="lede">The product, the price and every specification are untouched. Only the argument
+      is different.</p>
+    <div class="jp-fit">
+      <div class="card">
+        <h3>Kept</h3>
+        <p>Price. Photography. Every spec figure. The full accessory list. The item number. Nothing
+          about the product was reimagined — this is a merchandising change, not a product critique.</p>
+      </div>
+      <div class="card">
+        <h3>Changed</h3>
+        <p>Headline moved from the SKU to the job. Standby duration promoted from a spec row to the
+          lead. Peak amps demoted out of the headline. The price objection answered on the page
+          instead of ignored. A qualify-out section added.</p>
+      </div>
+      <div class="card">
+        <h3>Still unknown</h3>
+        <p>Whether the buyer is this person or a repair shop that already owns a BendPak lift. That
+          is answerable from order data in an afternoon, and it would change this page. I would want
+          to check before shipping any of it.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="assets/portfolio.js"></script>
+<script>
+(function(){
+  var IMGS = ['jackpak-1.jpg','jackpak-0.jpg','jackpak-8.jpg','jackpak-5.jpg','jackpak-2.jpg','jackpak-9.jpg'];
+  var t = document.getElementById('thumbs');
+  IMGS.forEach(function(f,i){
+    var im = document.createElement('img');
+    im.src = 'assets/img/' + f;
+    im.alt = 'JackPak Ultra2500A view ' + (i+1);
+    if (i === 0) im.className = 'sel';
+    im.onclick = function(){
+      document.getElementById('mainImg').src = im.src;
+      t.querySelectorAll('img').forEach(function(o){ o.className = ''; });
+      im.className = 'sel';
+    };
+    t.appendChild(im);
+  });
+  PF.chrome('jackpak-concept.html');
+  PF.foot('This page is an independent concept and is not affiliated with or endorsed by BendPak Inc.');
+})();
+function toggleAnno(){
+  var on = document.body.classList.toggle('anno-on');
+  var b = document.getElementById('annoBtn');
+  b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  b.textContent = on ? 'Hide my reasoning' : 'Show my reasoning';
+}
+</script>
+</body>
+</html>

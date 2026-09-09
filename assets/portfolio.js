@@ -205,7 +205,8 @@
     ['production-throughput.html', 'Throughput'],
     ['production-cost-variance.html', 'Cost Variance'],
     ['product-page.html', 'Product Page'],
-    ['collection-page.html', 'Collection Page']
+    ['collection-page.html', 'Collection Page'],
+    ['jackpak-concept.html', 'PDP Concept']
   ];
 
   PF.chrome = function (active) {
@@ -214,7 +215,13 @@
       return '<a href="' + n[0] + '"' + (n[0] === active ? ' class="active"' : '') + '>' + n[1] + '</a>';
     }).join('');
     var STOREFRONT = { 'product-page.html': 1, 'collection-page.html': 1 };
-    var banner = STOREFRONT[active]
+    var CONCEPT = { 'jackpak-concept.html': 1 };
+    var banner = CONCEPT[active]
+      ? '<b>Independent concept.</b><span>A rebuild of a third-party product page, written to a '
+        + 'single buyer persona. Not affiliated with or endorsed by the brand shown; their product '
+        + 'name, photography, price and specifications are reproduced from public sources so the '
+        + 'layout is concrete. Nothing here transacts.</span>'
+      : STOREFRONT[active]
       ? '<b>Static replica.</b><span>This mirrors a live public storefront page. Product '
         + 'names, prices and photography are real public catalog content; the page itself '
         + 'is a static rebuild, so nothing here transacts.</span>'
