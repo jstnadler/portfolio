@@ -217,10 +217,8 @@
     var STOREFRONT = { 'product-page.html': 1, 'collection-page.html': 1 };
     var CONCEPT = { 'jackpak-concept.html': 1 };
     var banner = CONCEPT[active]
-      ? '<b>Independent concept.</b><span>A rebuild of a third-party product page, written to a '
-        + 'single buyer persona. Not affiliated with or endorsed by the brand shown; their product '
-        + 'name, photography, price and specifications are reproduced from public sources so the '
-        + 'layout is concrete. Nothing here transacts.</span>'
+      ? '<b>Independent concept.</b><span>Spec work. Not affiliated with or endorsed by the brand '
+        + 'shown. Nothing here transacts.</span>'
       : STOREFRONT[active]
       ? '<b>Static replica.</b><span>This mirrors a live public storefront page. Product '
         + 'names, prices and photography are real public catalog content; the page itself '
