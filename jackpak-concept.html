@@ -59,8 +59,16 @@
   .jp-proof div{background:var(--card-alt);border:1px solid var(--line);border-radius:10px;padding:12px 13px}
   .jp-proof b{display:block;font-size:19px;font-weight:800;letter-spacing:-.015em;line-height:1.15}
   .jp-proof span{font-size:11.5px;color:var(--muted);display:block;margin-top:3px}
-  .jp-proof .gap{border-style:dashed;border-color:var(--warn)}
-  .jp-proof .gap b{color:var(--warn);font-size:15px}
+  .jp-proof .prop{border-style:dashed;border-color:var(--warn);background:transparent}
+  .jp-proof .prop b{color:var(--warn)}
+  .jp-proof .prop .flag{display:inline-block;background:var(--warn);color:#fff;font-size:9.5px;
+    font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:2px 7px;border-radius:20px;
+    margin-bottom:6px}
+  .jp-imported{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+  @media(max-width:820px){.jp-imported{grid-template-columns:1fr}}
+  .jp-imported div{background:var(--card-alt);border:1px solid var(--line);border-radius:10px;padding:13px 14px}
+  .jp-imported b{display:block;font-size:14px}
+  .jp-imported span{font-size:12.5px;color:var(--muted);display:block;margin-top:3px;line-height:1.45}
 
   .jp-price{font-size:27px;font-weight:800;letter-spacing:-.01em;margin-top:20px}
   .jp-price small{font-size:13px;font-weight:600;color:var(--muted);margin-left:8px}
@@ -156,9 +164,12 @@
           <div><b>8.5L gas · 6.5L diesel</b><span>1,200A starting. 2,500A peak.</span></div>
           <div><b>150 PSI</b><span>Trailer tires. Auto-shutoff.</span></div>
           <div><b>1,000 cycles</b><span>−4°F to +140°F.</span></div>
-          <div class="gap" style="grid-column:1/-1"><b>Warranty — not stated on the live page</b>
-            <span>BendPak publishes brand-level warranties but none for JackPak. I will not invent
-            one. This is the fifth proof slot and it is the one that actually differentiates.</span></div>
+          <div class="prop" style="grid-column:1/-1">
+            <span class="flag">Proposal — does not exist today</span>
+            <b>36-month warranty</b>
+            <span>Match the warranty to the standby claim. Say it holds charge for three years, then
+            back it for three years. BendPak publishes no JackPak warranty term at all today — this
+            is the one thing a $47 unit cannot copy, and right now the page does not mention it.</span></div>
         </div>
 
         <div class="jp-why"><b>No headline sentence.</b> Tony scans, he does not read. Five numbers
@@ -258,13 +269,25 @@
     <span class="jp-tag">Left empty on purpose</span>
     <h2>Owner reviews</h2>
     <div class="jp-empty">
-      <b>Intentionally blank.</b>
-      Placement only. I have no BendPak review data and will not invent any.
+      <b>Empty on the live page too.</b>
+      Module placement only. I have not written fake reviews — the real ones are listed below.
     </div>
-    <div class="jp-why"><b>The biggest conversion gap on the page.</b> Judge.me is already installed
-      on the live page, but there are no reviews and no <code>aggregateRating</code> in the structured
-      data. Meanwhile item 5180050 is collecting reviews on Home Depot. The proof exists. It is on
-      someone else's site.</div>
+
+    <div class="jp-imported">
+      <div><b>Home Depot — 4.9 / 5, 65 reviews</b><span>Item 5180050. A separate 2-pack listing
+        (JP20K2PK) carries its own reviews.</span></div>
+      <div><b>Lowe's · Ace Hardware · eBay · Wrenchers</b><span>All list 5180050. Review counts not
+        readable from outside.</span></div>
+      <div><b>Pelican Parts — none</b><span>Listed, no reviews.</span></div>
+    </div>
+
+    <div class="jp-why"><b>The reviews already exist. They are on other people's sites.</b> Home
+      Depot shows <b>4.9 out of 5 from 65 reviews</b> on this exact item number, and there is a second
+      review pool on the 2-pack listing. Judge.me is already installed on the live BendPak page, but
+      it holds nothing and the structured data has no <code>aggregateRating</code>.
+      <b>Syndicate or import them.</b> A 4.9 next to $316 changes the page more than any copy on it.
+      <i>(The 65 came from a search result, not a direct read — Home Depot blocks automated requests.
+      Confirm it in a browser before quoting it to anyone.)</i></div>
   </div>
 
   <!-- ══ SUMMARY ═══════════════════════════════════════════════════════ -->
