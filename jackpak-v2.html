@@ -127,6 +127,33 @@
   .v2-rev .stars{color:var(--warn);font-size:16px;letter-spacing:2px}
   .v2-rev .src{font-size:13.5px;line-height:1.6;color:var(--muted)}
 
+  /* rating row in hero */
+  .v2-rating{display:flex;align-items:center;gap:9px;margin:0 0 14px;flex-wrap:wrap}
+  .v2-rating .st{color:var(--warn);font-size:15px;letter-spacing:1.5px}
+  .v2-rating .sc{font-weight:800;font-size:14px}
+  .v2-rating .ct{font-size:12.5px;color:var(--muted)}
+  .v2-rating a{font-size:12.5px;color:var(--accent);text-decoration:none}
+
+  /* feature -> benefit table */
+  .v2-fb{width:100%;border-collapse:collapse;font-size:13.5px;margin-top:6px}
+  .v2-fb th{text-align:left;padding:9px 12px;font-size:11px;text-transform:uppercase;
+    letter-spacing:.07em;color:var(--muted);border-bottom:2px solid var(--line);font-weight:800}
+  .v2-fb td{padding:12px;border-bottom:1px solid var(--line);vertical-align:top;line-height:1.5}
+  .v2-fb td.f{width:24%;font-weight:700}
+  .v2-fb td.b{width:38%;color:var(--fg)}
+  .v2-fb td.m{width:38%;color:var(--muted);font-style:italic}
+  .v2-fb tr:hover td{background:var(--card-alt)}
+  .v2-rule{background:var(--card-alt);border:1px solid var(--line);border-left:3px solid var(--accent);
+    border-radius:0 10px 10px 0;padding:16px 18px;margin:20px 0 0;font-size:15px;line-height:1.6}
+  .v2-rule b{font-weight:800}
+
+  .v2-jam{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:4px}
+  @media(max-width:820px){.v2-jam{grid-template-columns:1fr}}
+  .v2-jam div{background:var(--card-alt);border:1px solid var(--line);border-radius:10px;padding:17px}
+  .v2-jam b{display:block;font-size:15px;margin-bottom:6px}
+  .v2-jam p{margin:0;font-size:13.5px;line-height:1.55;color:var(--muted)}
+  .v2-jam .out{display:block;margin-top:9px;font-size:13px;font-weight:700;color:var(--good)}
+
   .v2-spec{width:100%;border-collapse:collapse;font-size:13.5px}
   .v2-spec td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
   .v2-spec td:first-child{color:var(--muted);width:230px}
@@ -183,6 +210,16 @@
           <span class="mdl">JackPak Ultra2500A</span></h1>
         <p class="v2-sub">Item 5180050 · by BendPak</p>
 
+        <div class="v2-rating jp-anno">
+          <span class="jp-tag">Proof above the fold</span>
+          <span class="st">★★★★★</span><span class="sc">4.9</span>
+          <span class="ct">65 owner reviews</span>
+          <a href="#reviews">Read them →</a>
+          <div class="jp-why">On the live page this space is empty. <b>The 4.9 already exists on
+            Home Depot for this exact item number</b> — it belongs here, next to the price, where it
+            does the work of justifying $316.</div>
+        </div>
+
         <div class="v2-strip">
           <div><b>1,200A</b><span>Starting</span></div>
           <div><b>6.5L</b><span>Diesel</span></div>
@@ -232,6 +269,58 @@
       that state the condition they were measured at. Every figure here is BendPak's own.</div>
   </div>
 
+  <!-- ══ FEATURE → BENEFIT ═══════════════════════════════════════════ -->
+  <div class="v2-band jp-anno" id="benefits">
+    <span class="jp-tag">Every feature, finished as a sentence</span>
+    <div class="v2-kicker">Features vs Benefits</div>
+    <h2>Nine specs. Nine reasons you care.</h2>
+    <p class="body">Left column is what BendPak built. Middle is what it does for you. Right is the
+      day you find out it mattered.</p>
+
+    <table class="v2-fb">
+      <tr><th>Feature</th><th>Benefit — which means you…</th><th>The moment it pays for itself</th></tr>
+      <tr><td class="f">1,200A starting current<br>8.5L gas · 6.5L diesel</td>
+          <td class="b">…turn over your actual truck, not a compact car.</td>
+          <td class="m">6am at the trailhead. Cold. Trailer already loaded.</td></tr>
+      <tr><td class="f">36-month sleep-mode standby</td>
+          <td class="b">…find it charged the one time in three years you reach for it.</td>
+          <td class="m">Two summers in a toolbox, and it still works.</td></tr>
+      <tr><td class="f">150 PSI, adjustable auto-shutoff</td>
+          <td class="b">…air up a trailer tire, not just a car tire, and walk away while it runs.</td>
+          <td class="m">Soft tire on the shoulder, two hours from a tire shop.</td></tr>
+      <tr><td class="f">−4°F to +140°F rated</td>
+          <td class="b">…get the same performance in real weather as in a heated garage.</td>
+          <td class="m">March in the mountains. August in the desert.</td></tr>
+      <tr><td class="f">Keyed, colour-coded clamps<br>with reverse-polarity protection</td>
+          <td class="b">…hand it to someone who is not a mechanic without worrying.</td>
+          <td class="m">Your kid, a buddy, a stranger in a dark parking lot.</td></tr>
+      <tr><td class="f">300-lumen light, 160° beam, 3 modes</td>
+          <td class="b">…actually see the terminals you are clamping onto.</td>
+          <td class="m">Engine bay at night with no shop light anywhere.</td></tr>
+      <tr><td class="f">20,500 mAh power bank</td>
+          <td class="b">…keep a phone alive to call somebody.</td>
+          <td class="m">A dead phone and a dead truck is the difference between inconvenient and stranded.</td></tr>
+      <tr><td class="f">7 lb · 9.5 × 5.5 × 3 in · fold-down handle</td>
+          <td class="b">…keep it in the truck instead of on a shelf in the garage.</td>
+          <td class="m">It is with you. That is the whole point of owning one.</td></tr>
+      <tr><td class="f">1,000 full charge cycles</td>
+          <td class="b">…buy this once, not every couple of seasons.</td>
+          <td class="m">Year four, still in the trailer box.</td></tr>
+    </table>
+
+    <div class="v2-rule">
+      <b>The test:</b> if you cannot finish the sentence <b>"…which means you…"</b>, you have written
+      a feature, not a benefit. <b>150 PSI</b> is a feature. <b>You can air up a trailer tire on the
+      shoulder</b> is a benefit. Every row above had to pass that test before it went on the page.
+    </div>
+
+    <div class="jp-why"><b>This band is the argument of the whole page.</b> The live product page
+      lists nine specs and finishes none of those sentences, so the reader has to do the translation
+      himself — and most readers do not bother, they just compare numbers against a cheaper unit and
+      leave. <b>The specs are identical either way. Only the finishing changes.</b> Nothing in the
+      left column is invented; it is BendPak's published spec sheet, reordered and completed.</div>
+  </div>
+
   <!-- ══ THE STANDBY STORY ════════════════════════════════════════════ -->
   <div class="v2-band jp-anno">
     <span class="jp-tag">The one spec that earns the price</span>
@@ -269,15 +358,27 @@
 
   <!-- ══ SCENARIO ═════════════════════════════════════════════════════ -->
   <div class="v2-band jp-anno">
-    <span class="jp-tag">Name the moment</span>
+    <span class="jp-tag">The promise, in three jams</span>
     <div class="v2-kicker">Roadside | Trailhead | Launch Ramp</div>
-    <h2>When It's Your Truck Holding Up Four People</h2>
-    <p class="body">Dead battery at the trailhead at 6am. A soft trailer tire two hours from anywhere.
-      A dark engine bay on the shoulder. One 7 lb box covers all three, and it fits in the front box
-      of the trailer where you will actually keep it.</p>
-    <div class="jp-why">WOLFBOX has "Execute High-Intensity Trail Recovery." <b>Naming the scenario
-      beats listing the function</b> — the buyer places himself in it. Kept short because Tony does
-      not need it explained to him.</div>
+    <h2>Three ways a day goes wrong. One box fixes all three.</h2>
+    <div class="v2-jam">
+      <div><b>Dead battery, 6am, trailer loaded</b>
+        <p>Everybody is up, the truck is not. The nearest jump is forty minutes away and nobody wants
+          to make that call.</p>
+        <span class="out">→ Clamp on. Go.</span></div>
+      <div><b>Soft trailer tire, two hours from anywhere</b>
+        <p>You can limp it and ruin a tire, or sit. Gas-station air is thirty miles back and half of
+          them do not reach trailer pressure.</p>
+        <span class="out">→ 150 PSI, auto-shutoff. Go.</span></div>
+      <div><b>Dark engine bay on the shoulder</b>
+        <p>You cannot fix what you cannot see, and your phone is at 8% because it has been navigating
+          all day.</p>
+        <span class="out">→ 300 lumens, and it charges the phone. Go.</span></div>
+    </div>
+    <div class="jp-why">WOLFBOX has "Execute High-Intensity Trail Recovery." <b>Name the moment and
+      the buyer places himself in it.</b> Each card ends with the outcome, not the feature — the
+      feature is the small print underneath. Kept short: Tony does not need this explained to him, he
+      needs to recognise it.</div>
   </div>
 
   <!-- ══ HOW IT WORKS ═════════════════════════════════════════════════ -->
@@ -341,9 +442,9 @@
   </div>
 
   <!-- ══ REVIEWS ══════════════════════════════════════════════════════ -->
-  <div class="v2-band jp-anno">
+  <div class="v2-band jp-anno" id="reviews">
     <span class="jp-tag">The proof already exists elsewhere</span>
-    <h2>Owner reviews</h2>
+    <h2>65 people already trusted it with a bad morning</h2>
     <div class="v2-rev">
       <div style="text-align:center">
         <div class="big">4.9</div>
